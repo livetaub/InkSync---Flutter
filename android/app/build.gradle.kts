@@ -7,10 +7,11 @@ plugins {
 
 android {
     namespace = "com.inksync.inksync"
-    compileSdk = 34  // Required for Superwall
+    compileSdk = 36  // Required for Superwall and newer plugins
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        coreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -41,4 +42,8 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
