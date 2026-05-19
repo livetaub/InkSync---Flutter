@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Only run if triggered manually OR if the commit message contains '[build]'
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build]')
 
     steps:
       - name: Checkout repository
