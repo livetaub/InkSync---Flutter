@@ -7,7 +7,7 @@ import '../services/settings_service.dart';
 import '../screens/trash/trash_screen.dart';
 import '../screens/tutorial/tutorial_screen.dart';
 import '../screens/help/help_screen.dart';
-import '../screens/subscription/mobile_paywall_screen.dart';
+import '../screens/subscription/subscription_screen.dart';
 
 /// App Drawer with profile section and menu items
 class AppDrawer extends StatelessWidget {
@@ -38,12 +38,12 @@ class AppDrawer extends StatelessWidget {
                     context,
                     icon: Icons.workspace_premium,
                     iconColor: Colors.amber,
-                    title: 'Upgrade to Premium',
+                    title: 'Subscription',
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const MobilePaywallScreen()),
+                        MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
                       );
                     },
                   ),

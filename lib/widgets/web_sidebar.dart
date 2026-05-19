@@ -8,7 +8,7 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/invites/pending_invites_screen.dart';
 import '../services/auth_service.dart';
 import '../services/settings_service.dart';
-import '../screens/subscription/mobile_paywall_screen.dart';
+import '../screens/subscription/subscription_screen.dart';
 
 
 final authService = AuthService();
@@ -233,9 +233,9 @@ class _WebSidebarState extends State<WebSidebar> {
         const SizedBox(height: 8),
         _buildMenuSubItem(
           Icons.workspace_premium_rounded,
-          'Upgrade to Premium',
+          'Subscription',
           Colors.amber,
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MobilePaywallScreen())),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen())),
         ),
         _buildMenuSubItem(
           Icons.mail_outline_rounded,
