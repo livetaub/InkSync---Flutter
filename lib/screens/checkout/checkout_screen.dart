@@ -430,8 +430,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     Center(
                       child: TextButton(
                         onPressed: () {
-                          final origin = platform.getLocationOrigin();
-                          platform.setLocationHref('$origin/#/pricing');
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          } else {
+                            platform.setLocationHref('https://inksyncnote.com/pricing');
+                          }
                         },
                         child: const Text(
                           '← Back to pricing',

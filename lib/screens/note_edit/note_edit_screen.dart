@@ -12,6 +12,7 @@ import '../../services/calendar_service.dart';
 import '../../services/tag_service.dart';
 import '../../services/debug_service.dart';
 import '../../config/theme.dart';
+import '../subscription/mobile_paywall_screen.dart';
 import '../../providers/selection_provider.dart';
 import '../../utils/platform_helper.dart' as platform;
 import '../subscription/mobile_paywall_screen.dart';
@@ -881,7 +882,10 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                             onPressed: () {
                               Navigator.pop(context); // Close dialog
                               Navigator.pop(context); // Close NoteEditScreen
-                              Navigator.pushNamed(context, '/pricing');
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const MobilePaywallScreen()),
+                              );
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryColor,

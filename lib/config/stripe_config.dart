@@ -17,10 +17,10 @@ class StripeConfig {
       'https://bgzogfldvbdaoajlxjhf.supabase.co/functions/v1/create-subscription';
 
   /// Success redirect URL after Stripe Checkout
-  static const String successUrl = 'https://inksyncnote.com/#/app';
+  static const String successUrl = 'https://app.inksyncnote.com/checkout-success';
 
   /// Cancel redirect URL if user abandons checkout
-  static const String cancelUrl = 'https://inksyncnote.com/#/pricing';
+  static const String cancelUrl = 'https://inksyncnote.com/pricing';
 
   /// Whether Stripe is properly configured
   static bool get isConfigured =>
