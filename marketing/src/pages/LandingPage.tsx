@@ -54,7 +54,7 @@ const LandingPage = () => {
           </div>
           
           <div className="hero-actions">
-            <a href={`${APP_URL}/register`} className="btn-primary btn-large">
+            <a href={`${APP_URL}/#/register`} className="btn-primary btn-large">
               Start Free — No Credit Card <ArrowRight size={18} />
             </a>
             <a href="/pricing" className="btn-outline btn-large">
@@ -127,7 +127,7 @@ const LandingPage = () => {
           <div className="cta-box glass-panel">
             <h2>Ready to sync your thoughts?</h2>
             <p>Join thousands who never lose a note again.</p>
-            <a href={`${APP_URL}/register`} className="btn-primary btn-large cta-btn">
+            <a href={`${APP_URL}/#/register`} className="btn-primary btn-large cta-btn">
               Create Your Free Account
             </a>
           </div>
@@ -169,7 +169,7 @@ const LandingPage = () => {
           </div>
           <div className="footer-links">
             <a href="/pricing">Pricing</a>
-            <a href={`${APP_URL}/login`}>Sign In</a>
+            <a href={`${APP_URL}/#/login`}>Sign In</a>
           </div>
         </div>
         <div className="footer-bottom">
