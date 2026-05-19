@@ -338,40 +338,50 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
           const SizedBox(height: 24),
 
           // Plan cards
-          if (premiumPlan != null)
-            _buildPlanCard(
-              isDark: isDark,
-              planId: 'premium',
-              title: 'Premium',
-              subtitle: 'For power users',
-              plan: premiumPlan,
-              isHighlighted: true,
-              badge: 'Most Popular',
-              features: [
-                '${premiumPlan.notesLimit} cross-platform notes',
-                '${premiumPlan.aiCreditsLimit} AI writing credits / month',
-                'Real-time collaboration',
-                'Priority support',
-              ],
-            ),
-
-          const SizedBox(height: 16),
-
-          if (proPlan != null)
-            _buildPlanCard(
-              isDark: isDark,
-              planId: 'premium_pro',
-              title: 'Premium Pro',
-              subtitle: 'For teams & pros',
-              plan: proPlan,
-              isHighlighted: false,
-              features: [
-                '${proPlan.notesLimit} cross-platform notes',
-                '${proPlan.aiCreditsLimit} AI writing credits / month',
-                'Advanced collaboration',
-                'Priority support',
-              ],
-            ),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            alignment: WrapAlignment.center,
+            children: [
+              if (premiumPlan != null)
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: _buildPlanCard(
+                    isDark: isDark,
+                    planId: 'premium',
+                    title: 'Premium',
+                    subtitle: 'For power users',
+                    plan: premiumPlan,
+                    isHighlighted: true,
+                    badge: 'Most Popular',
+                    features: [
+                      '${premiumPlan.notesLimit} cross-platform notes',
+                      '${premiumPlan.aiCreditsLimit} AI writing credits / month',
+                      'Real-time collaboration',
+                      'Priority support',
+                    ],
+                  ),
+                ),
+              if (proPlan != null)
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: _buildPlanCard(
+                    isDark: isDark,
+                    planId: 'premium_pro',
+                    title: 'Premium Pro',
+                    subtitle: 'For teams & pros',
+                    plan: proPlan,
+                    isHighlighted: false,
+                    features: [
+                      '${proPlan.notesLimit} cross-platform notes',
+                      '${proPlan.aiCreditsLimit} AI writing credits / month',
+                      'Advanced collaboration',
+                      'Priority support',
+                    ],
+                  ),
+                ),
+            ],
+          ),
 
           const SizedBox(height: 24),
 
