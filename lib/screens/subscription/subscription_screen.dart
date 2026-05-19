@@ -43,6 +43,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         setState(() {
           _currentPlan = res['account_type'] ?? 'Free';
           _status = res['subscription_status'] ?? 'Inactive';
+          if (_currentPlan.toLowerCase() == 'free') {
+            _status = 'Active';
+          }
           _periodEnd = res['subscription_period_end'];
           _origin = res['subscription_origin'];
         });

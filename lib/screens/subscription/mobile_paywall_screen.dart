@@ -389,7 +389,7 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
           if (_error != null) _buildErrorBanner(isDark),
 
           // Restore purchases or Continue for Free
-          if (!widget.isFromSignup) _buildRestoreButton(isDark),
+          if (!widget.isFromSignup && !kIsWeb) _buildRestoreButton(isDark),
           if (widget.isFromSignup) _buildContinueForFree(isDark),
 
           const SizedBox(height: 12),
@@ -843,9 +843,11 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Text(
-        'Payment will be charged to your ${defaultTargetPlatform == TargetPlatform.iOS ? 'Apple ID' : 'Google Play'} account. '
-        'Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. '
-        'Manage subscriptions in your device settings.',
+        kIsWeb
+            ? 'Payment will be securely processed by Stripe. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Manage your subscription from your account settings.'
+            : 'Payment will be charged to your ${defaultTargetPlatform == TargetPlatform.iOS ? 'Apple ID' : 'Google Play'} account. '
+              'Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. '
+              'Manage subscriptions in your device settings.',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 11,
