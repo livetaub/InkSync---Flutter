@@ -23,8 +23,8 @@ const Navbar = () => {
           <a href="/#features" className="nav-link">Features</a>
           <Link to="/pricing" className="nav-link">Pricing</Link>
           <div className="nav-divider"></div>
-          <a href={`${APP_URL}/#/login`} className="nav-link">Sign In</a>
-          <a href={`${APP_URL}/#/register`} className="btn-primary" style={{ padding: '10px 20px' }}>
+          <a href={`${APP_URL}/login`} className="nav-link">Sign In</a>
+          <a href={`${APP_URL}/register`} className="btn-primary" style={{ padding: '10px 20px' }}>
             Get Started Free
           </a>
         </div>
@@ -42,8 +42,8 @@ const Navbar = () => {
           <a href="/#features" className="mobile-link" onClick={() => setIsOpen(false)}>Features</a>
           <Link to="/pricing" className="mobile-link" onClick={() => setIsOpen(false)}>Pricing</Link>
           <div className="mobile-divider"></div>
-          <a href={`${APP_URL}/#/login`} className="mobile-link" onClick={() => setIsOpen(false)}>Sign In</a>
-          <a href={`${APP_URL}/#/register`} className="btn-primary mobile-btn" onClick={() => setIsOpen(false)}>
+          <a href={`${APP_URL}/login`} className="mobile-link" onClick={() => setIsOpen(false)}>Sign In</a>
+          <a href={`${APP_URL}/register`} className="btn-primary mobile-btn" onClick={() => setIsOpen(false)}>
             Get Started Free
           </a>
         </div>

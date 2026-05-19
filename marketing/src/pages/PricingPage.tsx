@@ -63,7 +63,7 @@ const PricingPage = () => {
               <span className="period">/forever</span>
             </div>
             
-            <a href={`${APP_URL}/#/register`} className="btn-outline w-full">
+            <a href={`${APP_URL}/register`} className="btn-outline w-full">
               Get Started Free
             </a>
 
@@ -86,7 +86,7 @@ const PricingPage = () => {
               <span className="period">/mo</span>
             </div>
             
-            <a href={`${APP_URL}/#/register?plan=premium`} className="btn-primary w-full">
+            <a href={`${APP_URL}/register?plan=premium`} className="btn-primary w-full">
               Get Premium
             </a>
 
@@ -111,7 +111,7 @@ const PricingPage = () => {
               <span className="period">/mo</span>
             </div>
             
-            <a href={`${APP_URL}/#/register?plan=premium_pro`} className="btn-outline w-full">
+            <a href={`${APP_URL}/register?plan=premium_pro`} className="btn-outline w-full">
               Get Premium Pro
             </a>
 
