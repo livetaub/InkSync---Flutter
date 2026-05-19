@@ -76,7 +76,7 @@ class SupabaseAuthService {
         // This ensures we return to the same origin after OAuth
         await _client.auth.signInWithOAuth(
           OAuthProvider.google,
-          redirectTo: Uri.base.origin,
+          redirectTo: '${Uri.base.origin}/app',
         );
         // Note: On web, this redirects the page. The auth state will be
         // captured when the page reloads via Supabase.initialize()

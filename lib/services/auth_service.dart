@@ -75,7 +75,7 @@ class AuthService {
       DebugService.instance.log('[INFO] Starting Google sign-in (web: $kIsWeb)');
       
       if (kIsWeb) {
-        final redirectUrl = '${Uri.base.origin}/#/app';
+        final redirectUrl = '${Uri.base.origin}/app';
         DebugService.instance.log('[INFO] Redirect URL: $redirectUrl');
         await _client.auth.signInWithOAuth(
           OAuthProvider.google,
