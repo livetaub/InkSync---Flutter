@@ -1,0 +1,888 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../../services/auth_service.dart';
+import '../../services/notes_service.dart';
+import '../../services/tag_service.dart';
+import '../../services/debug_service.dart';
+import '../../providers/settings_provider.dart';
+import '../../config/theme.dart';
+import '../../widgets/note_card.dart';
+import '../../widgets/invite_banner.dart';
+import '../note_edit/note_edit_screen.dart';
+import '../../providers/selection_provider.dart';
+
+/// Modern HomeScreen with simplified header - menu in bottom nav
+class HomeScreen extends StatefulWidget {
+  final String? noteTypeFilter; // 'text', 'checklist', or null for all
+
+  const HomeScreen({super.key, this.noteTypeFilter});
+
+  @override
+  HomeScreenState createState() => HomeScreenState();
+}
+
+
+class HomeScreenState extends State<HomeScreen> {
+  /// Public method to refresh data from external callers
+  Future<void> refreshData() async {
+    debugPrint('HomeScreen refreshData called for ${widget.noteTypeFilter}');
+    await _loadData();
+  }
+
+  // ── Global Search State ──
+  String _globalSearchQuery = '';
+  final TextEditingController _globalSearchController = TextEditingController();
+  final FocusNode _globalSearchFocusNode = FocusNode();
+  bool _isGlobalSearchActive = false;
+  List<Note> _allNotesCache = []; // Cache of ALL notes for global search
+
+  /// Called from MainNavigation to toggle the inline search bar
+  void activateSearch() {
+    setState(() => _isGlobalSearchActive = true);
+    _loadAllNotesForSearch();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _globalSearchFocusNode.requestFocus();
+    });
+  }
+
+  /// Dismiss search and revert to preset filters
+  void deactivateSearch() {
+    setState(() {
+      _isGlobalSearchActive = false;
+      _globalSearchQuery = '';
+      _globalSearchController.clear();
+    });
+  }
+
+  bool get isSearchActive => _isGlobalSearchActive;
+
+  /// Load ALL notes (active + trashed) for global search
+  Future<void> _loadAllNotesForSearch() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final notesService = NotesService(authService);
+      final active = await notesService.getActiveNotes();
+      final trashed = await notesService.getTrashedNotes();
+      _allNotesCache = [...active, ...trashed];
+    } catch (e) {
+      _allNotesCache = List.from(_notes);
+    }
+  }
+
+  List<Note> _notes = [];
+  List<Tag> _tags = [];
+  List<Map<String, dynamic>> _pendingInvites = [];
+  String? _selectedTagName; // null means "All"
+  bool _isLoading = true;
+  bool _hasLoadedOnce = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSettings();
+      _loadData();
+      _loadInvites();
+    });
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final settingsProvider = Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      );
+      await settingsProvider.loadSettings(authService);
+    } catch (e) {
+      // Use defaults
+    }
+  }
+
+  /// Check if the fetched notes differ from the current in-memory list.
+  /// Compares count, IDs, and updated timestamps to detect real changes.
+  bool _hasNotesChanged(List<Note> newNotes) {
+    if (newNotes.length != _notes.length) return true;
+
+    // Build a map of id -> updatedDate for fast lookup
+    final oldMap = <String, DateTime?>{};
+    for (final note in _notes) {
+      if (note.id != null) oldMap[note.id!] = note.updatedDate;
+    }
+
+    for (final note in newNotes) {
+      if (note.id == null) return true;
+      if (!oldMap.containsKey(note.id)) return true;
+      if (oldMap[note.id] != note.updatedDate) return true;
+    }
+
+    return false;
+  }
+
+  /// Check if the fetched tags differ from the current in-memory list.
+  bool _hasTagsChanged(List<Tag> newTags) {
+    if (newTags.length != _tags.length) return true;
+    for (int i = 0; i < newTags.length; i++) {
+      if (newTags[i].name != _tags[i].name) return true;
+      if (newTags[i].id != _tags[i].id) return true;
+    }
+    return false;
+  }
+
+  Future<void> _loadData() async {
+    // Only show the loading spinner on the very first load
+    if (!_hasLoadedOnce) {
+      setState(() => _isLoading = true);
+    }
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final notesService = NotesService(authService);
+      final tagService = TagService(authService);
+
+      final notes = await notesService.getActiveNotes();
+
+      List<Tag> tags = [];
+      try {
+        if (widget.noteTypeFilter != null) {
+          tags = await tagService.getTagsByType(
+            widget.noteTypeFilter!,
+          );
+        } else {
+          tags = await tagService.getTags();
+        }
+      } catch (tagError) {
+        DebugService.instance.log('Error loading tags: $tagError');
+      }
+
+      if (!mounted) return;
+
+      // On first load, always apply. On subsequent loads, only if data changed.
+      if (!_hasLoadedOnce || _hasNotesChanged(notes) || _hasTagsChanged(tags)) {
+        setState(() {
+          _notes = notes;
+          _tags = tags;
+          _sortNotes();
+          _isLoading = false;
+          _hasLoadedOnce = true;
+        });
+      }
+    } catch (e, stackTrace) {
+      DebugService.instance.log('Error loading data: $e\n$stackTrace');
+      if (!_hasLoadedOnce) {
+        setState(() => _isLoading = false);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading notes: $e')));
+      }
+    }
+  }
+
+  Future<void> _loadInvites() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final notesService = NotesService(authService);
+      final invites = await notesService.getPendingInvites();
+      setState(() => _pendingInvites = invites);
+    } catch (e) {
+      DebugService.instance.log('Error loading invites: $e');
+    }
+  }
+
+  Future<void> _handleAcceptInvite(String inviteId) async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final notesService = NotesService(authService);
+      await notesService.acceptInvite(inviteId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invite accepted! Note added to your collection.'),
+          ),
+        );
+      }
+
+      _loadInvites();
+      _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error accepting invite: $e')));
+      }
+    }
+  }
+
+  void _handleDismissInvite(String inviteId) {
+    setState(() {
+      _pendingInvites.removeWhere((invite) => invite['id'] == inviteId);
+    });
+  }
+
+  Future<void> _handleRejectInvite(String inviteId) async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final notesService = NotesService(authService);
+      await notesService.rejectInvite(inviteId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Invite declined')));
+      }
+
+      _loadInvites();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error declining invite: $e')));
+      }
+    }
+  }
+
+  List<Note> get _filteredNotes {
+    // ── Global Search Mode: bypass all type/tag filters ──
+    if (_isGlobalSearchActive && _globalSearchQuery.isNotEmpty) {
+      final lowerQuery = _globalSearchQuery.toLowerCase();
+      return _allNotesCache.where((note) {
+        if (note.title.toLowerCase().contains(lowerQuery)) return true;
+        if (note.content.toLowerCase().contains(lowerQuery)) return true;
+        if (note.checklistItems.any(
+          (item) => item.text.toLowerCase().contains(lowerQuery),
+        )) return true;
+        if (note.tags.any(
+          (tag) => tag.toLowerCase().contains(lowerQuery),
+        )) return true;
+        return false;
+      }).toList();
+    }
+
+    var notes = _notes;
+
+    // Filter by note type if specified
+    if (widget.noteTypeFilter != null) {
+      notes = notes.where((n) => n.type == widget.noteTypeFilter).toList();
+    }
+
+    // Filter by tag if selected
+    if (_selectedTagName != null) {
+      DebugService.instance.log('Filtering by tag: $_selectedTagName');
+      DebugService.instance.log('Notes before filter: ${notes.length}');
+      for (var n in notes) {
+        DebugService.instance.log('Note "${n.title}" tags: ${n.tags}');
+      }
+      notes = notes.where((n) => n.tags.map((t) => t.toLowerCase()).contains(_selectedTagName!.toLowerCase())).toList();
+      DebugService.instance.log('Notes after filter: ${notes.length}');
+    }
+
+    return notes;
+  }
+
+  void _sortNotes() {
+    final settingsProvider = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    );
+    final sortBy = settingsProvider.sortBy;
+
+    _notes.sort((a, b) {
+      // Pinned notes always first
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+
+      switch (sortBy) {
+        case 'created':
+          return (b.createdDate ?? DateTime.now()).compareTo(
+            a.createdDate ?? DateTime.now(),
+          );
+        case 'alphabetical':
+          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        case 'color':
+          return a.color.compareTo(b.color);
+        case 'reminder':
+          final aReminder = a.reminderAt ?? DateTime(2100);
+          final bReminder = b.reminderAt ?? DateTime(2100);
+          return aReminder.compareTo(bReminder);
+        case 'modified':
+        default:
+          return (b.updatedDate ?? DateTime.now()).compareTo(
+            a.updatedDate ?? DateTime.now(),
+          );
+      }
+    });
+  }
+
+  void _openNote(Note note) {
+    final selectionProvider = Provider.of<SelectionProvider>(
+      context,
+      listen: false,
+    );
+    final isWide = MediaQuery.of(context).size.width > 900;
+    final searchQuery = _isGlobalSearchActive ? _globalSearchQuery : null;
+
+    if (isWide) {
+      // Pass search query via SelectionProvider for the embedded editor
+      selectionProvider.selectNote(note, searchQuery: searchQuery);
+    } else {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => NoteEditScreen(
+            note: note,
+            initialSearchQuery: searchQuery,
+          ),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      ).then((_) => _loadData());
+    }
+  }
+
+  void _showNoteContextMenu(Note note) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _NoteContextMenu(
+        note: note,
+        onPin: () {
+          Navigator.pop(context);
+          _togglePin(note);
+        },
+        onDelete: () {
+          Navigator.pop(context);
+          _deleteNote(note);
+        },
+        onOpen: () {
+          Navigator.pop(context);
+          _openNote(note);
+        },
+      ),
+    );
+  }
+
+  Future<void> _togglePin(Note note) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final notesService = NotesService(authService);
+    await notesService.updateNote(note.id!, {'isPinned': !note.isPinned});
+    _loadData();
+  }
+
+  Future<void> _deleteNote(Note note) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final notesService = NotesService(authService);
+    await notesService.trashNote(note.id!);
+    _loadData();
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Note moved to trash')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isWide = MediaQuery.of(context).size.width > 900;
+
+    return Consumer<SettingsProvider>(
+      builder: (context, settingsProvider, child) {
+        return Scaffold(
+          backgroundColor: isWide ? Colors.transparent : null,
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Simplified Header - just logo
+                _buildHeader(isDark),
+
+                // Inline Global Search Bar
+                if (_isGlobalSearchActive) _buildGlobalSearchBar(isDark),
+
+                // Pending invites banner (hide during search)
+                if (!_isGlobalSearchActive)
+                  InviteBanner(
+                    invites: _pendingInvites,
+                    onAccept: _handleAcceptInvite,
+                    onReject: _handleRejectInvite,
+                    onDismiss: _handleDismissInvite,
+                  ),
+
+                // Tag tabs - hide during search
+                if (!_isGlobalSearchActive) _buildTagTabs(isDark),
+
+                if (isWide && !_isGlobalSearchActive) const Divider(height: 1, thickness: 0.5),
+
+                // Notes List
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isLoading
+                        ? _buildLoading()
+                        : _filteredNotes.isEmpty
+                        ? _buildEmptyState(isDark)
+                        : RefreshIndicator(
+                            onRefresh: _loadData,
+                            color: AppTheme.primaryColor,
+                            child: _buildNotesView(settingsProvider.viewMode),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader(bool isDark) {
+    final isWide = MediaQuery.of(context).size.width > 900;
+    final headerTitle = widget.noteTypeFilter == 'checklist'
+        ? 'Checklists'
+        : 'Notes';
+
+    // Build header with InkSync branding + section name
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        isWide ? 20 : 16,
+        isWide ? 16 : 12,
+        isWide ? 20 : 16,
+        isWide ? 12 : 8,
+      ),
+      child: Row(
+        children: [
+          // Gradient InkSync Logo
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [
+                Color(0xFF1E88E5), // Blue
+                Color(0xFF10D98C), // Green
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ).createShader(bounds),
+            child: const Icon(
+              Icons.sync_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 10),
+          // App name + section
+          Text(
+            'InkSync - $headerTitle',
+            style: TextStyle(
+              fontSize: isWide ? 20 : 18,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : AppTheme.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlobalSearchBar(bool isDark) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      height: 44,
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.primaryColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 12),
+          Icon(
+            Icons.search_rounded,
+            color: AppTheme.primaryColor.withValues(alpha: 0.7),
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _globalSearchController,
+              focusNode: _globalSearchFocusNode,
+              style: TextStyle(
+                color: isDark ? Colors.white : AppTheme.textPrimary,
+                fontSize: 15,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search all notes, checklists, tags...',
+                hintStyle: TextStyle(
+                  color: isDark ? Colors.white38 : Colors.grey,
+                  fontSize: 14,
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onChanged: (query) {
+                setState(() => _globalSearchQuery = query.trim());
+              },
+            ),
+          ),
+          if (_globalSearchController.text.isNotEmpty)
+            IconButton(
+              icon: Icon(
+                Icons.clear_rounded,
+                color: isDark ? Colors.white54 : Colors.grey,
+                size: 18,
+              ),
+              onPressed: () {
+                _globalSearchController.clear();
+                setState(() => _globalSearchQuery = '');
+              },
+            ),
+          IconButton(
+            icon: Icon(
+              Icons.close_rounded,
+              color: isDark ? Colors.white54 : Colors.grey.shade600,
+              size: 20,
+            ),
+            tooltip: 'Close search',
+            onPressed: deactivateSearch,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTagTabs(bool isDark) {
+    final scrollController = ScrollController();
+    return Container(
+      height: 44,
+      margin: const EdgeInsets.only(top: 4),
+      child: Scrollbar(
+        controller: scrollController,
+        thumbVisibility: false,
+        child: ListView(
+          controller: scrollController,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          physics: const BouncingScrollPhysics(),
+          children: [
+            // "All" tab
+            _buildTagTab(
+              name: 'All',
+              isSelected: _selectedTagName == null,
+              onTap: () => setState(() => _selectedTagName = null),
+              isDark: isDark,
+            ),
+            // Tag tabs
+            ..._tags.map(
+              (tag) => _buildTagTab(
+                name: tag.name,
+                isSelected: _selectedTagName?.toLowerCase() == tag.name.toLowerCase(),
+                onTap: () => setState(() => _selectedTagName = tag.name),
+                isDark: isDark,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTagTab({
+    required String name,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppTheme.primaryColor
+              : isDark
+              ? Colors.white10
+              : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Center(
+          child: Text(
+            name,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected
+                  ? Colors.white
+                  : isDark
+                  ? Colors.white70
+                  : AppTheme.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav(bool isDark) {
+    return BottomAppBar(
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 8,
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      elevation: 8,
+      child: const SizedBox(height: 56),
+    );
+  }
+
+  Widget _buildLoading() {
+    return const Center(
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white10 : Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.note_add_outlined,
+              size: 48,
+              color: isDark ? Colors.white24 : Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No notes yet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white70 : AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tap + to create your first note',
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white38 : AppTheme.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotesView(String viewMode) {
+    switch (viewMode) {
+      case 'list':
+        return _buildListView();
+      case 'details':
+        return _buildDetailsView();
+      case 'grid':
+      case 'large-grid': // Fallback for old settings
+        return _buildGridView(isLarge: false);
+      default:
+        return _buildListView();
+    }
+  }
+
+  Widget _buildListView() {
+    final notes = _filteredNotes;
+    return Consumer<SelectionProvider>(
+      builder: (context, selectionProvider, child) {
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 8, bottom: 100),
+          itemCount: notes.length,
+          itemBuilder: (context, index) {
+            final note = notes[index];
+            return NoteCard(
+              key: ValueKey(note.id),
+              note: note,
+              viewMode: 'list',
+              isSelected: selectionProvider.selectedNote?.id == note.id,
+              onTap: () => _openNote(note),
+              onLongPress: () => _showNoteContextMenu(note),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailsView() {
+    final notes = _filteredNotes;
+    return Consumer<SelectionProvider>(
+      builder: (context, selectionProvider, child) {
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 8, bottom: 100),
+          itemCount: notes.length,
+          itemBuilder: (context, index) {
+            final note = notes[index];
+            return NoteCard(
+              key: ValueKey(note.id),
+              note: note,
+              viewMode: 'details',
+              isSelected: selectionProvider.selectedNote?.id == note.id,
+              onTap: () => _openNote(note),
+              onLongPress: () => _showNoteContextMenu(note),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildGridView({required bool isLarge}) {
+    final notes = _filteredNotes;
+    return Consumer<SelectionProvider>(
+      builder: (context, selectionProvider, child) {
+        return GridView.builder(
+          padding: const EdgeInsets.all(12),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: isLarge ? 0.75 : 0.9,
+          ),
+          itemCount: notes.length,
+          itemBuilder: (context, index) {
+            final note = notes[index];
+            return NoteCard(
+              key: ValueKey(note.id),
+              note: note,
+              viewMode: isLarge ? 'large-grid' : 'grid',
+              isSelected: selectionProvider.selectedNote?.id == note.id,
+              onTap: () => _openNote(note),
+              onLongPress: () => _showNoteContextMenu(note),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Context menu for long-press on notes
+class _NoteContextMenu extends StatelessWidget {
+  final Note note;
+  final VoidCallback onPin;
+  final VoidCallback onDelete;
+  final VoidCallback onOpen;
+
+  const _NoteContextMenu({
+    required this.note,
+    required this.onPin,
+    required this.onDelete,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            note.title.isEmpty ? 'Untitled' : note.title,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+              color: isDark ? Colors.white : AppTheme.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildAction(
+                context,
+                icon: note.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                label: note.isPinned ? 'Unpin' : 'Pin',
+                onTap: onPin,
+              ),
+              _buildAction(
+                context,
+                icon: Icons.open_in_new_rounded,
+                label: 'Open',
+                onTap: onOpen,
+              ),
+              _buildAction(
+                context,
+                icon: Icons.delete_outline_rounded,
+                label: 'Delete',
+                color: Colors.red,
+                onTap: onDelete,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAction(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final defaultColor = isDark ? Colors.white70 : AppTheme.textSecondary;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Icon(icon, color: color ?? defaultColor, size: 28),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, color: color ?? defaultColor),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
