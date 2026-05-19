@@ -8,6 +8,7 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/invites/pending_invites_screen.dart';
 import '../services/auth_service.dart';
 import '../services/settings_service.dart';
+import '../screens/subscription/mobile_paywall_screen.dart';
 
 
 final authService = AuthService();
@@ -234,7 +235,7 @@ class _WebSidebarState extends State<WebSidebar> {
           Icons.workspace_premium_rounded,
           'Upgrade to Premium',
           Colors.amber,
-          () => Navigator.pushNamed(context, '/pricing'),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MobilePaywallScreen())),
         ),
         _buildMenuSubItem(
           Icons.mail_outline_rounded,

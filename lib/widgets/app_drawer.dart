@@ -7,6 +7,7 @@ import '../services/settings_service.dart';
 import '../screens/trash/trash_screen.dart';
 import '../screens/tutorial/tutorial_screen.dart';
 import '../screens/help/help_screen.dart';
+import '../screens/subscription/mobile_paywall_screen.dart';
 
 /// App Drawer with profile section and menu items
 class AppDrawer extends StatelessWidget {
@@ -40,7 +41,10 @@ class AppDrawer extends StatelessWidget {
                     title: 'Upgrade to Premium',
                     onTap: () {
                       Navigator.pop(context);
-                      _showUpgradeDialog(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MobilePaywallScreen()),
+                      );
                     },
                   ),
                   _buildMenuItem(
@@ -217,61 +221,4 @@ class AppDrawer extends StatelessWidget {
     return text[0].toUpperCase() + text.substring(1);
   }
 
-  void _showUpgradeDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.star, color: Colors.amber),
-            SizedBox(width: 8),
-            Text('Upgrade to Premium'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Unlock these features:'),
-            const SizedBox(height: 12),
-            _buildFeatureRow(Icons.auto_fix_high, 'AI Writing Tools'),
-            _buildFeatureRow(Icons.people_outline, 'Collaboration'),
-            _buildFeatureRow(Icons.palette, 'Advanced Customization'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Maybe later'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final navigator = Navigator.of(context);
-              final authService = Provider.of<AuthService>(
-                context,
-                listen: false,
-              );
-              final settingsService = SettingsService(authService);
-              await settingsService.upgradeToPremium();
-              navigator.pop();
-            },
-            child: const Text('Upgrade'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppTheme.primaryColor),
-          const SizedBox(width: 8),
-          Text(text),
-        ],
-      ),
-    );
-  }
 }
