@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/settings_service.dart';
 import '../../services/auth_service.dart';
-import '../../services/Tag_service.dart';
+import '../../services/tag_service.dart';
 import '../../config/theme.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/settings_provider.dart';
