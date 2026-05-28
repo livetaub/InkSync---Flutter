@@ -210,25 +210,49 @@ serve(async (req: Request) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
-    } else if (paymentIntent?.status === "requires_action") {
-      // 3D Secure or additional authentication required
-      return new Response(
-        JSON.stringify({
-          status: "requires_action",
-          clientSecret: paymentIntent.client_secret,
-          subscriptionId: subscription.id,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
     } else {
-      // Payment failed
+      // Check if there was an actual decline error from Stripe
+      if (paymentIntent?.last_payment_error) {
+        const stripeError = paymentIntent.last_payment_error.message || "Payment could not be processed. Please try a different card.";
+        console.log(`Payment failed (decline): ${stripeError} (Stripe Status: ${paymentIntent?.status})`);
+        return new Response(
+          JSON.stringify({
+            status: "failed",
+            error: stripeError,
+          }),
+          {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // If it requires action, confirmation, or payment method, send the clientSecret to the frontend to confirm the payment
+      if (
+        paymentIntent?.status === "requires_action" ||
+        paymentIntent?.status === "requires_payment_method" ||
+        paymentIntent?.status === "requires_confirmation"
+      ) {
+        console.log(`Subscription requires client-side confirmation. Status: ${paymentIntent.status}`);
+        return new Response(
+          JSON.stringify({
+            status: "requires_action",
+            clientSecret: paymentIntent.client_secret,
+            subscriptionId: subscription.id,
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Fallback failed response
+      console.log(`Unhandled payment intent status: ${paymentIntent?.status}, Subscription status: ${subscription.status}`);
       return new Response(
         JSON.stringify({
           status: "failed",
-          error: "Payment could not be processed. Please try a different card.",
+          error: "Payment could not be completed. Please try a different card.",
         }),
         {
           status: 402,

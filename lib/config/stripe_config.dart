@@ -10,7 +10,7 @@
 class StripeConfig {
   /// Stripe Publishable Key (safe for client-side)
   /// Replace with your actual key from Stripe Dashboard > Developers > API Keys
-  static const String publishableKey = 'pk_test_REPLACE_WITH_YOUR_KEY';
+  static const String publishableKey = 'pk_live_51SlzeN3vVetXJOaZ2pLmLMgiRVD7jLS4GKmDcC3rhz3zm4tUZvSAYTV5LBCjvXDdlIPyxAQGdFGP5HUkDKhzKaKb00BcuO3T7Q';
 
   /// Supabase Edge Function base URL for Stripe operations
   static const String subscriptionFunctionUrl =

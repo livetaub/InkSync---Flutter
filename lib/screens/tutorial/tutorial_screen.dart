@@ -5,8 +5,13 @@ import '../../config/theme.dart';
 /// Tutorial/Onboarding screen showing app features
 class TutorialScreen extends StatefulWidget {
   final bool isOnboarding;
+  final bool isDialog;
 
-  const TutorialScreen({super.key, this.isOnboarding = false});
+  const TutorialScreen({
+    super.key,
+    this.isOnboarding = false,
+    this.isDialog = false,
+  });
 
   @override
   State<TutorialScreen> createState() => _TutorialScreenState();
@@ -88,6 +93,96 @@ class _TutorialScreenState extends State<TutorialScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final content = Column(
+      children: [
+        if (widget.isDialog)
+          Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8.0, right: 8.0),
+              child: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ),
+        // Page content
+        Expanded(
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) => setState(() => _currentPage = index),
+            itemCount: _pages.length,
+            itemBuilder: (context, index) {
+              final page = _pages[index];
+              return _buildPage(page);
+            },
+          ),
+        ),
+
+        // Page indicators
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              _pages.length,
+              (index) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: _currentPage == index ? 24 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _currentPage == index
+                      ? AppTheme.primaryColor
+                      : (isDark ? Colors.white24 : Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Buttons
+        Padding(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            children: [
+              if (_currentPage > 0)
+                TextButton(
+                  onPressed: () {
+                    _pageController.previousPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  child: const Text('Back'),
+                )
+              else
+                TextButton(onPressed: _finish, child: const Text('Skip')),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: _nextPage,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 12,
+                  ),
+                ),
+                child: Text(
+                  _currentPage == _pages.length - 1
+                      ? 'Get Started'
+                      : 'Next',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (widget.isDialog) {
+      return content;
+    }
+
     return Scaffold(
       backgroundColor: isDark ? AppTheme.bgPrimaryDark : Colors.white,
       appBar: widget.isOnboarding
@@ -124,85 +219,13 @@ class _TutorialScreenState extends State<TutorialScreen> {
               ),
             ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Page content
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (index) => setState(() => _currentPage = index),
-                itemCount: _pages.length,
-                itemBuilder: (context, index) {
-                  final page = _pages[index];
-                  return _buildPage(page);
-                },
-              ),
-            ),
-
-            // Page indicators
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  _pages.length,
-                  (index) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: _currentPage == index ? 24 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: _currentPage == index
-                          ? AppTheme.primaryColor
-                          : Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // Buttons
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  if (_currentPage > 0)
-                    TextButton(
-                      onPressed: () {
-                        _pageController.previousPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      },
-                      child: const Text('Back'),
-                    )
-                  else
-                    TextButton(onPressed: _finish, child: const Text('Skip')),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: _nextPage,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 12,
-                      ),
-                    ),
-                    child: Text(
-                      _currentPage == _pages.length - 1
-                          ? 'Get Started'
-                          : 'Next',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+        child: content,
       ),
     );
   }
 
   Widget _buildPage(TutorialPage page) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(40),
       child: Column(
@@ -220,19 +243,19 @@ class _TutorialScreenState extends State<TutorialScreen> {
           const SizedBox(height: 40),
           Text(
             page.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
+              color: isDark ? Colors.white : AppTheme.textPrimary,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           Text(
             page.description,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: AppTheme.textSecondary,
+              color: isDark ? Colors.white70 : AppTheme.textSecondary,
               height: 1.5,
             ),
             textAlign: TextAlign.center,

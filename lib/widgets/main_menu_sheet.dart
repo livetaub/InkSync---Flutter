@@ -5,12 +5,12 @@ import 'package:share_plus/share_plus.dart';
 import '../config/theme.dart';
 import '../services/auth_service.dart';
 
-import '../screens/tutorial/tutorial_screen.dart';
 import '../screens/help/help_screen.dart';
 import '../screens/trash/trash_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/invites/pending_invites_screen.dart';
 import '../screens/subscription/subscription_screen.dart';
+import '../utils/ui_helper.dart';
 
 /// Floating menu sheet with navigation and actions
 class MainMenuSheet extends StatefulWidget {
@@ -121,12 +121,20 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                     title: 'Manage Subscription',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SubscriptionScreen(),
-                        ),
-                      );
+                      final isWide = MediaQuery.of(context).size.width > 900;
+                      if (isWide) {
+                        showLargeDialog(
+                          context: context,
+                          child: const SubscriptionScreen(isDialog: true),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SubscriptionScreen(),
+                          ),
+                        );
+                      }
                     },
                   ),
                   _buildMenuItem(
@@ -135,12 +143,20 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                     title: 'Pending Invites',
                     onTap: () async {
                       Navigator.pop(context);
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const PendingInvitesScreen(),
-                        ),
-                      );
+                      final isWide = MediaQuery.of(context).size.width > 900;
+                      if (isWide) {
+                        await showLargeDialog(
+                          context: context,
+                          child: const PendingInvitesScreen(isDialog: true),
+                        );
+                      } else {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PendingInvitesScreen(),
+                          ),
+                        );
+                      }
                       if (widget.onDataChanged != null) {
                         widget.onDataChanged!();
                       }
@@ -211,30 +227,23 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                     title: 'Settings',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SettingsScreen(),
-                        ),
-                      );
+                      final isWide = MediaQuery.of(context).size.width > 900;
+                      if (isWide) {
+                        showLargeDialog(
+                          context: context,
+                          child: const SettingsScreen(isDialog: true),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        );
+                      }
                     },
                   ),
                   const Divider(height: 16, indent: 16, endIndent: 16),
-
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.help_outline_rounded,
-                    title: 'Tutorial',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const TutorialScreen(),
-                        ),
-                      );
-                    },
-                  ),
                   _buildMenuItem(
                     context,
                     icon: Icons.share_outlined,
@@ -253,34 +262,54 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                     title: 'Help & Feedback',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const HelpScreen()),
-                      );
+                      final isWide = MediaQuery.of(context).size.width > 900;
+                      if (isWide) {
+                        showLargeDialog(
+                          context: context,
+                          child: const HelpScreen(isDialog: true),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const HelpScreen()),
+                        );
+                      }
                     },
                   ),
                   const Divider(height: 16, indent: 16, endIndent: 16),
-                  _buildMenuItem(
-                    context,
-                    customIcon: CircleAvatar(
-                      radius: 10,
-                      backgroundColor: Colors.redAccent.withValues(alpha: 0.15),
-                      child: Text(
-                        (authService.currentUserEmail ?? 'U')[0].toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.redAccent,
+                  if (authService.isLoggedIn)
+                    _buildMenuItem(
+                      context,
+                      customIcon: CircleAvatar(
+                        radius: 10,
+                        backgroundColor: Colors.redAccent.withValues(alpha: 0.15),
+                        child: Text(
+                          (authService.currentUserEmail ?? 'U')[0].toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.redAccent,
+                          ),
                         ),
                       ),
+                      title: 'Sign Out (${authService.currentUserEmail ?? "User"})',
+                      titleColor: Colors.redAccent,
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await authService.signOut();
+                      },
+                    )
+                  else
+                    _buildMenuItem(
+                      context,
+                      icon: Icons.login_rounded,
+                      title: 'Log In or Sign Up',
+                      iconColor: AppTheme.primaryColor,
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.pushReplacementNamed(context, '/login');
+                      },
                     ),
-                    title: 'Sign Out (${authService.currentUserEmail ?? "User"})',
-                    titleColor: Colors.redAccent,
-                    onTap: () async {
-                      Navigator.pop(context);
-                      await authService.signOut();
-                    },
-                  ),
                 ],
               ),
             ),

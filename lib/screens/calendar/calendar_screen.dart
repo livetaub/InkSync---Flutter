@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../services/calendar_service.dart';
 import '../../services/auth_service.dart';
 import '../../config/theme.dart';
+import '../../utils/ui_helper.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -92,13 +93,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _showAddEventDialog() {
-    showModalBottomSheet(
+    showAdaptiveModal(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => EventFormSheet(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      child: EventFormSheet(
         initialDate: _selectedDate,
         onSave: (event) async {
           await _calendarService.createEvent(event);
@@ -109,13 +108,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _showEditEventDialog(CalendarEvent event) {
-    showModalBottomSheet(
+    showAdaptiveModal(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => EventFormSheet(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      child: EventFormSheet(
         event: event,
         initialDate: event.date,
         onSave: (updatedEvent) async {

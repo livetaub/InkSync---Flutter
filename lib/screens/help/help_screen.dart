@@ -1,79 +1,113 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/theme.dart';
+import '../../utils/ui_helper.dart';
+import '../tutorial/tutorial_screen.dart';
 
 /// Help & Feedback screen with FAQs and contact options
 class HelpScreen extends StatelessWidget {
-  const HelpScreen({super.key});
+  final bool isDialog;
+
+  const HelpScreen({super.key, this.isDialog = false});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? AppTheme.bgPrimaryDark : AppTheme.bgPrimary,
-      appBar: AppBar(
-        backgroundColor: isDark ? AppTheme.bgPrimaryDark : AppTheme.bgPrimary,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: isDark ? Colors.white : AppTheme.textPrimary,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Help & Feedback',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : AppTheme.textPrimary,
-            letterSpacing: -0.3,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.05)
-                : Colors.black.withValues(alpha: 0.05),
-          ),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Quick Actions
-          _buildSection('Get Help', [
-            _buildActionTile(
-              context,
-              icon: Icons.email_outlined,
-              title: 'Contact Support',
-              subtitle: 'Send us an email',
-              onTap: () => _launchEmail(),
-              isDark: isDark,
+    final content = Column(
+      children: [
+        if (isDialog)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+            child: Row(
+              children: [
+                const SizedBox(width: 48),
+                Expanded(
+                  child: Text(
+                    'Help & Feedback',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
             ),
-            _buildActionTile(
-              context,
-              icon: Icons.bug_report_outlined,
-              title: 'Report a Bug',
-              subtitle: 'Help us improve',
-              onTap: () => _showFeedbackDialog(context, 'Bug Report'),
-              isDark: isDark,
-            ),
-            _buildActionTile(
-              context,
-              icon: Icons.lightbulb_outline,
-              title: 'Suggest a Feature',
-              subtitle: 'We love new ideas',
-              onTap: () => _showFeedbackDialog(context, 'Feature Request'),
-              isDark: isDark,
-            ),
-          ], isDark: isDark),
-          const SizedBox(height: 24),
+          ),
+        if (isDialog) const Divider(height: 1),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Quick Actions
+              _buildSection('Get Help', [
+                _buildActionTile(
+                  context,
+                  icon: Icons.school_outlined,
+                  title: 'App Tutorial',
+                  subtitle: 'Learn how to use InkSync',
+                  onTap: () {
+                    if (isDialog) {
+                      showLargeDialog(
+                        context: context,
+                        child: const TutorialScreen(isDialog: true),
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TutorialScreen(),
+                        ),
+                      );
+                    }
+                  },
+                  isDark: isDark,
+                ),
+                _buildActionTile(
+                  context,
+                  icon: Icons.email_outlined,
+                  title: 'Contact Support',
+                  subtitle: 'Send us an email',
+                  onTap: () => _launchEmail(),
+                  isDark: isDark,
+                ),
+                _buildActionTile(
+                  context,
+                  icon: Icons.bug_report_outlined,
+                  title: 'Report a Bug',
+                  subtitle: 'Help us improve',
+                  onTap: () => _showFeedbackDialog(context, 'Bug Report'),
+                  isDark: isDark,
+                ),
+                _buildActionTile(
+                  context,
+                  icon: Icons.lightbulb_outline,
+                  title: 'Suggest a Feature',
+                  subtitle: 'We love new ideas',
+                  onTap: () => _showFeedbackDialog(context, 'Feature Request'),
+                  isDark: isDark,
+                ),
+                _buildActionTile(
+                  context,
+                  icon: Icons.description_outlined,
+                  title: 'Terms & Privacy Policy',
+                  subtitle: 'Read our legal agreements',
+                  onTap: () async {
+                    final uri = Uri.parse('https://inksyncnote.com/terms');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  isDark: isDark,
+                ),
+              ], isDark: isDark),
+              const SizedBox(height: 24),
 
           // FAQs
           _buildSection('Frequently Asked Questions', [
@@ -184,6 +218,48 @@ class HelpScreen extends StatelessWidget {
           ),
         ],
       ),
+    ),
+  ],
+);
+
+    if (isDialog) {
+      return content;
+    }
+
+    return Scaffold(
+      backgroundColor: isDark ? AppTheme.bgPrimaryDark : AppTheme.bgPrimary,
+      appBar: AppBar(
+        backgroundColor: isDark ? AppTheme.bgPrimaryDark : AppTheme.bgPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: isDark ? Colors.white : AppTheme.textPrimary,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Help & Feedback',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : AppTheme.textPrimary,
+            letterSpacing: -0.3,
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.05),
+          ),
+        ),
+      ),
+      body: content,
     );
   }
 

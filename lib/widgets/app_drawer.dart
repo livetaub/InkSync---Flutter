@@ -5,7 +5,6 @@ import '../config/theme.dart';
 import '../services/auth_service.dart';
 import '../services/settings_service.dart';
 import '../screens/trash/trash_screen.dart';
-import '../screens/tutorial/tutorial_screen.dart';
 import '../screens/help/help_screen.dart';
 import '../screens/subscription/subscription_screen.dart';
 
@@ -78,21 +77,6 @@ class AppDrawer extends StatelessWidget {
                       onSettingsTap?.call();
                     },
                   ),
-                  const Divider(),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.help_outline,
-                    title: 'Tutorial',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const TutorialScreen(),
-                        ),
-                      );
-                    },
-                  ),
                   _buildMenuItem(
                     context,
                     icon: Icons.share_outlined,
@@ -123,17 +107,30 @@ class AppDrawer extends StatelessWidget {
 
             // Sign Out at bottom
             const Divider(height: 1),
-            _buildMenuItem(
-              context,
-              icon: Icons.logout,
-              iconColor: Colors.red,
-              title: 'Sign Out',
-              titleColor: Colors.red,
-              onTap: () async {
-                Navigator.pop(context);
-                await authService.signOut();
-              },
-            ),
+            if (authService.isLoggedIn)
+              _buildMenuItem(
+                context,
+                icon: Icons.logout,
+                iconColor: Colors.red,
+                title: 'Sign Out',
+                titleColor: Colors.red,
+                onTap: () async {
+                  Navigator.pop(context);
+                  await authService.signOut();
+                },
+              )
+            else
+              _buildMenuItem(
+                context,
+                icon: Icons.login,
+                iconColor: AppTheme.primaryColor,
+                title: 'Log In / Register',
+                titleColor: AppTheme.primaryColor,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacementNamed(context, '/login');
+                },
+              ),
             const SizedBox(height: 8),
           ],
         ),
@@ -142,8 +139,8 @@ class AppDrawer extends StatelessWidget {
   }
 
   Widget _buildProfileHeader(BuildContext context, AuthService authService) {
-    final email = authService.currentUserEmail ?? 'User';
-    final name = email.split('@').first;
+    final email = authService.isLoggedIn ? (authService.currentUserEmail ?? 'User') : 'Guest User';
+    final name = authService.isLoggedIn ? email.split('@').first : 'Local storage only';
 
     return Container(
       padding: const EdgeInsets.all(20),

@@ -5,18 +5,18 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../utils/ui_helper.dart';
 import '../../services/notes_service.dart';
 import '../../services/gemini_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/calendar_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/tag_service.dart';
 import '../../services/debug_service.dart';
 import '../../config/theme.dart';
 import '../subscription/mobile_paywall_screen.dart';
 import '../../providers/selection_provider.dart';
 import '../../utils/platform_helper.dart' as platform;
-import '../subscription/mobile_paywall_screen.dart';
-import '../checkout/android_checkout_screen.dart';
 
 class NoteEditScreen extends StatefulWidget {
   final Note? note;
@@ -39,12 +39,15 @@ class NoteEditScreen extends StatefulWidget {
 }
 
 class _NoteEditScreenState extends State<NoteEditScreen> {
+  late AuthService _authService;
+  late NotesService _notesService;
   late TextEditingController _titleController;
   late TextEditingController _contentController;
   late TextEditingController _searchController;
   late String _noteType;
   late String _color;
   late bool _isPinned;
+  late bool _isPinnedToNotifications;
   late bool _isLocked;
   String? _lockPassword;
   late List<ChecklistItem> _checklistItems;
@@ -88,6 +91,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   @override
   void initState() {
     super.initState();
+    _authService = Provider.of<AuthService>(context, listen: false);
+    _notesService = NotesService(_authService);
     _noteId = widget.note?.id;
     _createdBy = widget.note?.createdBy;
     _titleController = TextEditingController(text: widget.note?.title ?? '');
@@ -98,6 +103,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     _noteType = widget.note?.type ?? widget.noteType;
     _color = widget.note?.color ?? 'yellow';
     _isPinned = widget.note?.isPinned ?? false;
+    _isPinnedToNotifications = widget.note?.isPinnedToNotifications ?? false;
     _isLocked = widget.note?.isLocked ?? false;
     _lockPassword = widget.note?.lockPassword;
     _checklistItems = List.from(widget.note?.checklistItems ?? []);
@@ -249,18 +255,16 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
   /// Synchronous save for use in dispose - fires and forgets
   void _saveNoteSync() {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final notesService = NotesService(authService);
-
     final title = _titleController.text;
 
     if (_noteId != null) {
-      notesService.updateNote(_noteId!, {
+      _notesService.updateNote(_noteId!, {
         'title': title,
         'content': _noteType == 'text' ? _contentController.text : '',
         'type': _noteType,
         'color': _color,
         'isPinned': _isPinned,
+        'isPinnedToNotifications': _isPinnedToNotifications,
         'isLocked': _isLocked,
         'lockPassword': _lockPassword,
         'checklistItems': _checklistItems.map((i) => i.toMap()).toList(),
@@ -268,6 +272,16 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         'tags': _tags,
         'titleSetManually': _titleSetManually,
       });
+      if (!kIsWeb && _isPinnedToNotifications) {
+        final content = _noteType == 'text'
+            ? _contentController.text
+            : _checklistItems.map((i) => '${i.checked ? "☑" : "☐"} ${i.text}').join('\n');
+        NotificationService.instance.pinNote(
+          noteId: _noteId!,
+          title: title,
+          body: content,
+        );
+      }
       widget.onSave?.call();
     } else {
       // Fire and forget creation of a new note if closed immediately
@@ -277,17 +291,74 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         type: _noteType,
         color: _color,
         isPinned: _isPinned,
+        isPinnedToNotifications: _isPinnedToNotifications,
         isLocked: _isLocked,
         lockPassword: _lockPassword,
         checklistItems: _noteType == 'checklist' ? _checklistItems : [],
         collaborators: _collaborators,
-        createdBy: authService.currentUserId,
+        createdBy: _authService.currentUserId,
         tags: _tags,
         titleSetManually: _titleSetManually,
       );
-      notesService.createNote(newNote).then((_) {
+      _notesService.createNote(newNote).then((created) {
+        if (!kIsWeb && _isPinnedToNotifications && created != null && created.id != null) {
+          final content = created.type == 'text'
+              ? created.content
+              : created.checklistItems.map((i) => '${i.checked ? "☑" : "☐"} ${i.text}').join('\n');
+          NotificationService.instance.pinNote(
+            noteId: created.id!,
+            title: created.title,
+            body: content,
+          );
+        }
         widget.onSave?.call();
       });
+    }
+  }
+
+  Future<void> _toggleNotificationPin() async {
+    if (kIsWeb) return;
+    HapticFeedback.mediumImpact();
+
+    if (_noteId == null) {
+      await _saveNote();
+    }
+
+    if (_noteId == null) {
+      return;
+    }
+
+    final title = _titleController.text;
+    final content = _noteType == 'text'
+        ? _contentController.text
+        : _checklistItems.map((i) => '${i.checked ? "☑" : "☐"} ${i.text}').join('\n');
+
+    try {
+      if (_isPinnedToNotifications) {
+        await NotificationService.instance.unpinNote(_noteId!);
+        setState(() {
+          _isPinnedToNotifications = false;
+        });
+      } else {
+        await NotificationService.instance.pinNote(
+          noteId: _noteId!,
+          title: title,
+          body: content,
+        );
+        setState(() {
+          _isPinnedToNotifications = true;
+        });
+      }
+
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final notesService = NotesService(authService);
+      await notesService.updateNote(_noteId!, {
+        'isPinnedToNotifications': _isPinnedToNotifications,
+      });
+
+      widget.onSave?.call();
+    } catch (e) {
+      debugPrint('Error toggling notification pin: $e');
     }
   }
 
@@ -466,9 +537,6 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      final notesService = NotesService(authService);
-
       final title = _titleController.text;
 
       if (_noteId == null) {
@@ -478,24 +546,26 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           type: _noteType,
           color: _color,
           isPinned: _isPinned,
+          isPinnedToNotifications: _isPinnedToNotifications,
           isLocked: _isLocked,
           lockPassword: _lockPassword,
           checklistItems: _noteType == 'checklist' ? _checklistItems : [],
           collaborators: _collaborators,
-          createdBy: authService.currentUserId,
+          createdBy: _authService.currentUserId,
           tags: _tags,
           titleSetManually: _titleSetManually,
         );
-        final created = await notesService.createNote(newNote);
+        final created = await _notesService.createNote(newNote);
         _noteId = created?.id;
-        _createdBy = authService.currentUserId;
+        _createdBy = _authService.currentUserId;
       } else {
-        await notesService.updateNote(_noteId!, {
+        await _notesService.updateNote(_noteId!, {
           'title': title,
           'content': _noteType == 'text' ? _contentController.text : '',
           'type': _noteType,
           'color': _color,
           'isPinned': _isPinned,
+          'isPinnedToNotifications': _isPinnedToNotifications,
           'isLocked': _isLocked,
           'lockPassword': _lockPassword,
           'checklistItems': _checklistItems.map((i) => i.toMap()).toList(),
@@ -503,6 +573,17 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           'tags': _tags,
           'titleSetManually': _titleSetManually,
         });
+      }
+
+      if (!kIsWeb && _isPinnedToNotifications && _noteId != null) {
+        final content = _noteType == 'text'
+            ? _contentController.text
+            : _checklistItems.map((i) => '${i.checked ? "☑" : "☐"} ${i.text}').join('\n');
+        await NotificationService.instance.pinNote(
+          noteId: _noteId!,
+          title: title,
+          body: content,
+        );
       }
 
       setState(() {
@@ -515,9 +596,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     } catch (e) {
       setState(() => _isSaving = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving: $e')));
+        showErrorSnackBar(context, 'Error saving: $e');
       }
     }
   }
@@ -690,21 +769,39 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
             Text('Locked Note'),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Enter password to view this note'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                hintText: 'Password',
-                prefixIcon: Icon(Icons.key),
+        content: Container(
+          width: 380,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Enter password to view this note'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  hintText: 'Password',
+                  prefixIcon: Icon(Icons.key),
+                ),
+                autofocus: true,
               ),
-              autofocus: true,
-            ),
-          ],
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close unlock dialog
+                    _handleForgotNotePassword();
+                  },
+                  child: const Text(
+                    'Forgot password?',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -720,9 +817,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                 setState(() => _isUnlocked = true);
                 Navigator.pop(context);
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Incorrect password')),
-                );
+                showErrorSnackBar(context, 'Incorrect password');
               }
             },
             child: const Text('Unlock'),
@@ -732,63 +827,213 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     );
   }
 
-  void _showLockDialog() {
-    final passwordController = TextEditingController();
+  void _handleForgotNotePassword() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (!authService.isLoggedIn) {
+      showErrorSnackBar(context, 'Cannot reset note password in guest mode. Please register/log in.');
+      _showUnlockDialog();
+      return;
+    }
 
-    showDialog(
+    final email = authService.currentUserEmail;
+    if (email == null) {
+      _showUnlockDialog();
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              _isLocked ? Icons.lock_open : Icons.lock,
-              color: AppTheme.primaryColor,
-            ),
-            const SizedBox(width: 8),
-            Text(_isLocked ? 'Remove Lock' : 'Lock Note'),
-          ],
+        title: const Text('Reset Note Password'),
+        content: Text(
+          'We will send a password reset verification email to $email. '
+          'Verifying your identity will remove the lock on this note. '
+          'Would you like to proceed?',
         ),
-        content: _isLocked
-            ? const Text('Remove password protection from this note?')
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Set a password to protect this note'),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      hintText: 'Password',
-                      prefixIcon: Icon(Icons.key),
-                    ),
-                  ),
-                ],
-              ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              if (_isLocked) {
-                setState(() {
-                  _isLocked = false;
-                  _lockPassword = null;
-                });
-              } else if (passwordController.text.isNotEmpty) {
-                setState(() {
-                  _isLocked = true;
-                  _lockPassword = passwordController.text;
-                });
-              }
-              _onContentChanged();
-              Navigator.pop(context);
-            },
-            child: Text(_isLocked ? 'Remove' : 'Lock'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Send Email'),
           ),
         ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await Supabase.instance.client.rpc(
+          'request_note_unlock',
+          params: {
+            'p_note_id': _noteId,
+            'p_email': email,
+            'p_origin': kIsWeb ? platform.getLocationOrigin() : 'https://app.inksyncnote.com',
+          },
+        );
+
+        if (mounted) {
+          showSuccessSnackBar(context, 'Reset email sent! Please check your inbox.');
+        }
+      } catch (e) {
+        if (mounted) {
+          showErrorSnackBar(context, 'Error sending email: $e');
+        }
+      }
+    } else {
+      _showUnlockDialog();
+    }
+  }
+
+  void _showLockDialog() {
+    final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(
+                  _isLocked ? Icons.lock_open : Icons.lock,
+                  color: AppTheme.primaryColor,
+                ),
+                const SizedBox(width: 8),
+                Text(_isLocked ? 'Remove Lock' : 'Lock Note'),
+              ],
+            ),
+            content: Container(
+              width: 380,
+              child: _isLocked
+                  ? Form(
+                      key: formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Enter password to remove lock from this note:'),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: passwordController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              hintText: 'Password',
+                              prefixIcon: Icon(Icons.key),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the password';
+                              }
+                              if (value != _lockPassword) {
+                                return 'Incorrect password';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.pop(context); // Close remove lock dialog
+                                _handleForgotNotePassword();
+                              },
+                              child: const Text(
+                                'Forgot password?',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Form(
+                      key: formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Set a password to protect this note'),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: passwordController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              hintText: 'Password',
+                              prefixIcon: Icon(Icons.key),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a password';
+                              }
+                              if (value.length < 4) {
+                                return 'Password must be at least 4 characters';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: confirmPasswordController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              hintText: 'Confirm Password',
+                              prefixIcon: Icon(Icons.key),
+                            ),
+                            validator: (value) {
+                              if (value != passwordController.text) {
+                                return 'Passwords do not match';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (_isLocked) {
+                    if (formKey.currentState?.validate() == true) {
+                      setState(() {
+                        _isLocked = false;
+                        _lockPassword = null;
+                      });
+                      _onContentChanged();
+                      await _saveNote();
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    }
+                  } else {
+                    if (formKey.currentState?.validate() == true) {
+                      setState(() {
+                        _isLocked = true;
+                        _lockPassword = passwordController.text;
+                        _isUnlocked = true;
+                      });
+                      _onContentChanged();
+                      await _saveNote();
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    }
+                  }
+                },
+                child: Text(_isLocked ? 'Remove' : 'Lock'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -940,25 +1185,14 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
     final message = '✉️ You\'ve been invited to collaborate!\n\n'
         '$senderEmail invited you to collaborate on "$noteTitle".\n\n'
-        'Sign in to your InkSync account with $inviteeEmail to accept the invite. '
-        'Don\'t have an account yet? Create one for free!\n\n'
-        '👉 https://inksyncnote.com';
+        'Sign in to your InkSync account with $inviteeEmail to accept the invite at:\n'
+        '👉 https://app.inksyncnote.com\n\n'
+        'Don\'t have an account yet? Create one for free!\n'
+        'inksyncnote.com is a free cross-platform note-taking app.';
 
     // Copy to clipboard first (especially useful on desktop)
     Clipboard.setData(ClipboardData(text: message));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.content_copy, color: Colors.white, size: 16),
-            SizedBox(width: 8),
-            Text('Invite link copied to clipboard'),
-          ],
-        ),
-        duration: Duration(seconds: 2),
-        backgroundColor: Colors.green,
-      ),
-    );
+    showSuccessSnackBar(context, 'Invite link copied to clipboard');
 
     // Also open native share sheet
     Share.share(message);
@@ -1246,15 +1480,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                                                   .toLowerCase();
                                               if (email.isEmpty ||
                                                   !email.contains('@')) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Please enter a valid email',
-                                                    ),
-                                                  ),
-                                                );
+                                                showErrorSnackBar(context, 'Please enter a valid email');
                                                 return;
                                               }
 
@@ -1263,11 +1489,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                                               );
 
                                               if (existingIndex != -1) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text('User is already invited. Manage their permissions from the list below.'),
-                                                  ),
-                                                );
+                                                showErrorSnackBar(context, 'User is already invited. Manage their permissions from the list below.');
                                                 return;
                                               }
 
@@ -1327,31 +1549,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                                                         );
 
                                                     if (mounted) {
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        SnackBar(
-                                                          content: Row(
-                                                            children: [
-                                                              const Icon(
-                                                                Icons
-                                                                    .check_circle,
-                                                                color: Colors
-                                                                    .white,
-                                                                size: 18,
-                                                              ),
-                                                              const SizedBox(
-                                                                width: 8,
-                                                              ),
-                                                              Text(
-                                                                '$email added',
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          backgroundColor:
-                                                              Colors.green,
-                                                        ),
-                                                      );
+                                                      showSuccessSnackBar(context, '$email added');
                                                     }
                                                   } catch (inviteError) {
                                                     // Invite failed but user was still added
@@ -1359,48 +1557,13 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                                                       '[ERROR] INVITE: $inviteError',
                                                     );
                                                     if (mounted) {
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        SnackBar(
-                                                          content: Row(
-                                                            children: [
-                                                              const Icon(
-                                                                Icons.warning,
-                                                                color: Colors
-                                                                    .white,
-                                                                size: 18,
-                                                              ),
-                                                              const SizedBox(
-                                                                width: 8,
-                                                              ),
-                                                              Expanded(
-                                                                child: Text(
-                                                                  '$email added (notification pending)',
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          backgroundColor:
-                                                              Colors.orange,
-                                                        ),
-                                                      );
+                                                      showSuccessSnackBar(context, '$email added (notification pending)');
                                                     }
                                                   }
                                                 }
                                               } catch (e) {
                                                 if (mounted) {
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        'Error: $e',
-                                                      ),
-                                                      backgroundColor:
-                                                          Colors.red,
-                                                    ),
-                                                  );
+                                                  showErrorSnackBar(context, 'Error: $e');
                                                 }
                                               } finally {
                                                 setModalState(
@@ -1927,79 +2090,99 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
       Navigator.pop(ctx); // Close dialog
       Navigator.pop(context); // Go back
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('You left the note')));
+      showSuccessSnackBar(context, 'You left the note');
     }
   }
 
   void _showColorPicker() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDesktop = MediaQuery.of(context).size.width > 800;
     
-    showModalBottomSheet(
+    showAdaptiveModal(
       context: context,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Choose Color',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: AppTheme.noteColors.keys
-                  .where((key) => !['teal', 'gray', 'white'].contains(key))
-                  .map((key) {
-                    final isSelected = _color == key;
-                    final darkerColor = isDark 
-                        ? AppTheme.noteColorsDark[key] ?? Colors.grey 
-                        : AppTheme.noteColors[key] ?? Colors.grey;
-                    final lighterColor = isDark 
-                        ? AppTheme.noteBodyColorsDark[key] ?? Colors.white 
-                        : AppTheme.noteHeaderColors[key] ?? Colors.white;
+      backgroundColor: isDesktop ? null : Theme.of(context).scaffoldBackgroundColor,
+      child: Builder(
+        builder: (ctx) => Container(
+          decoration: BoxDecoration(
+            color: isDesktop
+                ? (isDark ? const Color(0xFF1A1D21) : Colors.white)
+                : Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: isDesktop
+                ? BorderRadius.circular(20)
+                : const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isDesktop) ...[
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+              const Text(
+                'Choose Color',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: AppTheme.noteColors.keys
+                    .where((key) => !['teal', 'gray', 'white'].contains(key))
+                    .map((key) {
+                      final isSelected = _color == key;
+                      final darkerColor = isDark 
+                          ? AppTheme.noteColorsDark[key] ?? Colors.grey 
+                          : AppTheme.noteColors[key] ?? Colors.grey;
+                      final lighterColor = isDark 
+                          ? AppTheme.noteBodyColorsDark[key] ?? Colors.white 
+                          : AppTheme.noteHeaderColors[key] ?? Colors.white;
 
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() => _color = key);
-                        _onContentChanged();
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: lighterColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected
-                                ? AppTheme.primaryColor
-                                : darkerColor,
-                            width: isSelected ? 3 : 2,
+                      return GestureDetector(
+                        onTap: () async {
+                          setState(() => _color = key);
+                          _onContentChanged();
+                          await _saveNote();
+                          Navigator.pop(ctx);
+                        },
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: lighterColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppTheme.primaryColor
+                                  : darkerColor,
+                              width: isSelected ? 3 : 2,
+                            ),
                           ),
+                          child: isSelected
+                              ? const Icon(
+                                  Icons.check,
+                                  color: AppTheme.primaryColor,
+                                  size: 20,
+                                )
+                              : null,
                         ),
-                        child: isSelected
-                            ? const Icon(
-                                Icons.check,
-                                color: AppTheme.primaryColor,
-                                size: 20,
-                              )
-                            : null,
-                      ),
-                    );
-                  })
-                  .toList(),
-            ),
-            const SizedBox(height: 16),
-          ],
+                      );
+                    })
+                    .toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -2015,20 +2198,26 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     if (!mounted) return;
 
     final controller = TextEditingController();
+    final isDesktop = MediaQuery.of(context).size.width > 800;
     
-    showModalBottomSheet(
+    showAdaptiveModal(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          return Padding(
+      backgroundColor: isDesktop ? null : Theme.of(context).scaffoldBackgroundColor,
+      child: StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          return Container(
+            decoration: BoxDecoration(
+              color: isDesktop
+                  ? (isDark ? const Color(0xFF1A1D21) : Colors.white)
+                  : Theme.of(ctx).scaffoldBackgroundColor,
+              borderRadius: isDesktop
+                  ? BorderRadius.circular(20)
+                  : const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
             padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
               left: 24,
               right: 24,
               top: 24,
@@ -2037,6 +2226,19 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (!isDesktop) ...[
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
                 const Row(
                   children: [
                     Icon(Icons.label_outline, color: AppTheme.primaryColor),
@@ -2066,7 +2268,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                         selected: isSelected,
                         selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
                         checkmarkColor: AppTheme.primaryColor,
-                        onSelected: (selected) {
+                        onSelected: (selected) async {
                           setSheetState(() {
                             if (selected) {
                               if (!_tags.contains(tag.name)) _tags.add(tag.name);
@@ -2076,6 +2278,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                           });
                           setState(() {});
                           _onContentChanged();
+                          await _saveNote();
                         },
                       );
                     }).toList(),
@@ -2122,7 +2325,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                             });
                             setState(() {});
                             _onContentChanged();
-                            Navigator.pop(context);
+                            await _saveNote();
+                            Navigator.pop(ctx);
                           }
                         },
                       ),
@@ -2147,7 +2351,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                             });
                             setState(() {});
                             _onContentChanged();
-                            Navigator.pop(context);
+                            await _saveNote();
+                            Navigator.pop(ctx);
                           }
                         },
                       ),
@@ -2184,19 +2389,12 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         if (accountType == 'free') {
            if (mounted) _showUpgradePaywall('AI Writing Assist', 'You have used all your free AI credits. Upgrade your subscription to unlock unlimited AI writing assistance.');
         } else {
-           if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You have reached your plan\'s AI assist limit.')));
+           if (mounted) showErrorSnackBar(context, 'You have reached your plan\'s AI assist limit.');
         }
         return;
       } else if (accountType == 'free') {
          if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(
-               content: Text('AI Writing Assist is a premium feature. You have ${limit - usedCredits} free uses included in your plan.'),
-               duration: const Duration(seconds: 4),
-               backgroundColor: const Color(0xFF1E293B),
-               behavior: SnackBarBehavior.floating,
-             ),
-           );
+           showSuccessSnackBar(context, 'AI Writing Assist is a premium feature. You have ${limit - usedCredits} free uses included in your plan.');
          }
       }
 
@@ -2229,37 +2427,39 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     }
 
     if (textToProcess.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter some text first')),
-      );
+      showErrorSnackBar(context, 'Please enter some text first');
       return;
     }
 
-    showModalBottomSheet(
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+
+    showAdaptiveModal(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AIWritingAssistSheet(
-        text: textToProcess,
-        hasSelection: hasSelection,
-        onInsert: (result) {
-          if (hasSelection) {
-            final start = _contentController.selection.start;
-            final end = _contentController.selection.end;
-            final newText = _contentController.text.replaceRange(
-              start,
-              end,
-              result,
-            );
-            _contentController.text = newText;
-            _contentController.selection = TextSelection.collapsed(
-              offset: start + result.length,
-            );
-          } else {
-            _contentController.text = result;
-          }
-          _onContentChanged();
-        },
+      backgroundColor: isDesktop ? null : Colors.transparent,
+      child: Builder(
+        builder: (ctx) => AIWritingAssistSheet(
+          text: textToProcess,
+          hasSelection: hasSelection,
+          onInsert: (result) {
+            if (hasSelection) {
+              final start = _contentController.selection.start;
+              final end = _contentController.selection.end;
+              final newText = _contentController.text.replaceRange(
+                start,
+                end,
+                result,
+              );
+              _contentController.text = newText;
+              _contentController.selection = TextSelection.collapsed(
+                offset: start + result.length,
+              );
+            } else {
+              _contentController.text = result;
+            }
+            _onContentChanged();
+          },
+        ),
       ),
     );
   }
@@ -2272,103 +2472,121 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     DateTime selectedDate = DateTime.now();
 
     if (!mounted) return;
+    final isDesktop = MediaQuery.of(context).size.width > 800;
 
-    showModalBottomSheet(
+    showAdaptiveModal(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Add to Calendar',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      backgroundColor: isDesktop ? null : Theme.of(context).scaffoldBackgroundColor,
+      child: Builder(
+        builder: (ctx) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDesktop
+                    ? (isDark ? const Color(0xFF1A1D21) : Colors.white)
+                    : Theme.of(ctx).scaffoldBackgroundColor,
+                borderRadius: isDesktop
+                    ? BorderRadius.circular(20)
+                    : const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Event Title',
-                  hintText: 'Enter event title',
-                ),
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: selectedDate,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                  );
-                  if (date != null) {
-                    selectedDate = date;
-                    dateController.text =
-                        '${date.day}/${date.month}/${date.year}';
-                  }
-                },
-                child: TextField(
-                  controller: dateController,
-                  enabled: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Date',
-                    hintText: 'Select date',
-                    suffixIcon: Icon(Icons.calendar_today),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    if (titleController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter a title')),
-                      );
-                      return;
-                    }
-
-                    final authService = Provider.of<AuthService>(
-                      context,
-                      listen: false,
-                    );
-                    final calendarService = CalendarService(authService);
-
-                    await calendarService.createEvent(
-                      CalendarEvent(
-                        title: titleController.text,
-                        date: selectedDate,
-                        isAllDay: true,
-                        color: _color,
-                      ),
-                    );
-
-                    if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Event added to calendar!'),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!isDesktop) ...[
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white24 : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  const Text(
+                    'Add to Calendar',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Event Title',
+                      hintText: 'Enter event title',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  InkWell(
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
                       );
-                    }
-                  },
-                  child: const Text('Add Event'),
-                ),
+                      if (date != null) {
+                        selectedDate = date;
+                        dateController.text =
+                            '${date.day}/${date.month}/${date.year}';
+                      }
+                    },
+                    child: TextField(
+                      controller: dateController,
+                      enabled: false,
+                      decoration: const InputDecoration(
+                        labelText: 'Date',
+                        hintText: 'Select date',
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (titleController.text.isEmpty) {
+                          showErrorSnackBar(ctx, 'Please enter a title');
+                          return;
+                        }
+
+                        final authService = Provider.of<AuthService>(
+                          ctx,
+                          listen: false,
+                        );
+                        final calendarService = CalendarService(authService);
+
+                        await calendarService.createEvent(
+                          CalendarEvent(
+                            title: titleController.text,
+                            date: selectedDate,
+                            isAllDay: true,
+                            color: _color,
+                          ),
+                        );
+
+                        if (mounted) {
+                          Navigator.pop(ctx);
+                          showSuccessSnackBar(context, 'Event added to calendar!');
+                        }
+                      },
+                      child: const Text('Add Event'),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        }
       ),
     );
   }
@@ -2413,111 +2631,111 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     // Immediately save and notify parent of the type change
     _saveNote();
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Converted to ${_noteType == 'text' ? 'text note' : 'checklist'}',
-        ),
-      ),
-    );
+    showSuccessSnackBar(context, 'Converted to ${_noteType == 'text' ? 'text note' : 'checklist'}');
   }
 
   /// Unified Share & Collaborate sheet with three options
   void _showShareAndCollaborateSheet() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDesktop = MediaQuery.of(context).size.width > 800;
 
-    showModalBottomSheet(
+    showAdaptiveModal(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1A1D21) : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white24 : Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Title
-            Row(
-              children: [
-                const Icon(Icons.share_outlined, color: AppTheme.primaryColor, size: 24),
-                const SizedBox(width: 12),
-                Text(
-                  'Share & Collaborate',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : AppTheme.textPrimary,
+      backgroundColor: isDesktop ? null : Colors.transparent,
+      child: Builder(
+        builder: (ctx) => Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A1D21) : Colors.white,
+            borderRadius: isDesktop
+                ? BorderRadius.circular(20)
+                : const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isDesktop) ...[
+                // Drag handle
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
+                const SizedBox(height: 20),
               ],
-            ),
-            const SizedBox(height: 24),
 
-            // Option 1: Collaborate (Live)
-            _buildShareOption(
-              isDark: isDark,
-              icon: Icons.people_outline_rounded,
-              iconColor: Colors.blue,
-              title: 'Collaborate',
-              description: 'Invite others to view or edit this note in real time. Changes stay synced.',
-              badgeCount: _collaborators.isNotEmpty ? _collaborators.length : null,
-              onTap: () {
-                Navigator.pop(ctx);
-                _showCollaboratorsDialog();
-              },
-            ),
+              // Title
+              Row(
+                children: [
+                  const Icon(Icons.share_outlined, color: AppTheme.primaryColor, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Share & Collaborate',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
 
-            const SizedBox(height: 12),
+              // Option 1: Collaborate (Live)
+              _buildShareOption(
+                isDark: isDark,
+                icon: Icons.people_outline_rounded,
+                iconColor: Colors.blue,
+                title: 'Collaborate',
+                description: 'Invite others to view or edit this note in real time. Changes stay synced.',
+                badgeCount: _collaborators.isNotEmpty ? _collaborators.length : null,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showCollaboratorsDialog();
+                },
+              ),
 
-            // Option 2: Share a Copy (Snapshot)
-            _buildShareOption(
-              isDark: isDark,
-              icon: Icons.link_rounded,
-              iconColor: AppTheme.primaryColor,
-              title: 'Share a Copy',
-              description: 'Generate a read-only link to a frozen snapshot of this note. No login required to view.',
-              onTap: () {
-                Navigator.pop(ctx);
-                _createAndShareSnapshot();
-              },
-            ),
+              const SizedBox(height: 12),
 
-            const SizedBox(height: 12),
+              // Option 2: Share a Copy (Snapshot)
+              _buildShareOption(
+                isDark: isDark,
+                icon: Icons.link_rounded,
+                iconColor: AppTheme.primaryColor,
+                title: 'Share a Copy',
+                description: 'Generate a read-only link to a frozen snapshot of this note. No login required to view.',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _createAndShareSnapshot();
+                },
+              ),
 
-            // Option 3: Copy Text
-            _buildShareOption(
-              isDark: isDark,
-              icon: Icons.content_copy_rounded,
-              iconColor: Colors.orange,
-              title: 'Copy Text',
-              description: 'Copy the note\'s content as plain text to your clipboard.',
-              onTap: () {
-                Navigator.pop(ctx);
-                _copyNoteText();
-              },
-            ),
+              const SizedBox(height: 12),
 
-            const SizedBox(height: 20),
+              // Option 3: Copy Text
+              _buildShareOption(
+                isDark: isDark,
+                icon: Icons.content_copy_rounded,
+                iconColor: Colors.orange,
+                title: 'Copy Text',
+                description: 'Copy the note\'s content as plain text to your clipboard.',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _copyNoteText();
+                },
+              ),
 
-            // FAQ Section
-            _buildShareFaq(isDark),
+              const SizedBox(height: 20),
 
-            SizedBox(height: MediaQuery.of(ctx).padding.bottom + 8),
-          ],
+              // FAQ Section
+              _buildShareFaq(isDark),
+
+              SizedBox(height: isDesktop ? 0 : MediaQuery.of(ctx).padding.bottom + 8),
+            ],
+          ),
         ),
       ),
     );
@@ -2720,9 +2938,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     }
     if (_noteId == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please save the note first')),
-        );
+        showErrorSnackBar(context, 'Please save the note first');
       }
       return;
     }
@@ -2747,8 +2963,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         color: _color,
       );
 
-      final origin = kIsWeb ? platform.getLocationOrigin() : 'https://inksyncnote.com';
-      final baseUrl = '$origin/#/snapshot';
+      final origin = kIsWeb ? platform.getLocationOrigin() : 'https://app.inksyncnote.com';
+      final baseUrl = '$origin/snapshot';
       final snapshotUrl = '$baseUrl/$token';
 
       if (mounted) Navigator.pop(context); // Close loading
@@ -2758,9 +2974,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     } catch (e) {
       if (mounted) Navigator.pop(context); // Close loading
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating snapshot: $e')),
-        );
+        showErrorSnackBar(context, 'Error creating snapshot: $e');
       }
     }
   }
@@ -2768,160 +2982,163 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   /// Show the generated snapshot link with copy and share options
   void _showSnapshotLinkSheet(String url) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDesktop = MediaQuery.of(context).size.width > 800;
 
-    showModalBottomSheet(
+    showAdaptiveModal(
       context: context,
-      backgroundColor: Colors.transparent,
+      backgroundColor: isDesktop ? null : Colors.transparent,
       isScrollControlled: true,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1A1D21) : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-        child: SingleChildScrollView(
-          child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white24 : Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Success icon
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: AppTheme.primaryColor,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            Text(
-              'Snapshot Link Ready',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Anyone with this link can view a read-only copy',
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? Colors.white38 : AppTheme.textMuted,
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Link display
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isDark ? Colors.white10 : Colors.grey.shade200,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.link_rounded,
-                    size: 18,
-                    color: isDark ? Colors.white38 : Colors.grey,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      url,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.white54 : AppTheme.textSecondary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Action buttons
-            Row(
+      child: Builder(
+        builder: (ctx) => Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A1D21) : Colors.white,
+            borderRadius: isDesktop
+                ? BorderRadius.circular(20)
+                : const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: url));
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                          content: Text('Link copied!'),
-                          backgroundColor: Colors.green,
+                if (!isDesktop) ...[
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // Success icon
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppTheme.primaryColor,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                Text(
+                  'Snapshot Link Ready',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Anyone with this link can view a read-only copy',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white38 : AppTheme.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Link display
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? Colors.white10 : Colors.grey.shade200,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.link_rounded,
+                        size: 18,
+                        color: isDark ? Colors.white38 : Colors.grey,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          url,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white54 : AppTheme.textSecondary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.copy_rounded, size: 18),
-                    label: const Text('Copy Link'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: isDark ? Colors.white70 : AppTheme.textPrimary,
-                      side: BorderSide(
-                        color: isDark ? Colors.white24 : Colors.grey.shade300,
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      final title = _titleController.text.isEmpty
-                          ? 'Shared Note'
-                          : _titleController.text;
-                      Share.share(
-                        'Check out "$title" on InkSync!\n\n$url',
-                        subject: title,
-                      );
-                    },
-                    icon: const Icon(Icons.share_rounded, size: 18),
-                    label: const Text('Share Link'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 16),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: url));
+                          showSuccessSnackBar(ctx, 'Link copied!');
+                        },
+                        icon: const Icon(Icons.copy_rounded, size: 18),
+                        label: const Text('Copy Link'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white70 : AppTheme.textPrimary,
+                          side: BorderSide(
+                            color: isDark ? Colors.white24 : Colors.grey.shade300,
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          final title = _titleController.text.isEmpty
+                              ? 'Shared Note'
+                              : _titleController.text;
+                          Share.share(
+                            'Check out "$title" on InkSync!\n\n$url\n\n'
+                            'inksyncnote.com is a free cross-platform note-taking app.',
+                            subject: title,
+                          );
+                        },
+                        icon: const Icon(Icons.share_rounded, size: 18),
+                        label: const Text('Share Link'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+
+                SizedBox(height: isDesktop ? 0 : MediaQuery.of(ctx).padding.bottom + 8),
               ],
             ),
-
-            SizedBox(height: MediaQuery.of(ctx).padding.bottom + 8),
-          ],
-        ),
+          ),
         ),
       ),
     );
@@ -2943,21 +3160,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     }
 
     Clipboard.setData(ClipboardData(text: textToCopy));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 16),
-            SizedBox(width: 8),
-            Text('Note text copied to clipboard'),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    showSuccessSnackBar(context, 'Note text copied to clipboard');
   }
 
   Future<void> _deleteNote() async {
@@ -2991,14 +3194,13 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     );
 
     if (confirm == true && mounted) {
+      HapticFeedback.heavyImpact();
       final authService = Provider.of<AuthService>(context, listen: false);
       final notesService = NotesService(authService);
       await notesService.trashNote(_noteId!);
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Note moved to trash')));
+        showSuccessSnackBar(context, 'Note moved to trash');
       }
     }
   }
@@ -3300,11 +3502,16 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            onSelected: (value) {
+            onSelected: (value) async {
               switch (value) {
                 case 'pin':
+                  HapticFeedback.mediumImpact();
                   setState(() => _isPinned = !_isPinned);
                   _onContentChanged();
+                  await _saveNote();
+                  break;
+                case 'notification_pin':
+                  _toggleNotificationPin();
                   break;
                 case 'color':
                   _showColorPicker();
@@ -3343,6 +3550,26 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                   ],
                 ),
               ),
+              if (!kIsWeb)
+                PopupMenuItem(
+                  value: 'notification_pin',
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isPinnedToNotifications
+                            ? Icons.notifications_active
+                            : Icons.notifications_active_outlined,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        _isPinnedToNotifications
+                            ? 'Unpin Notification'
+                            : 'Pin to Notification Bar',
+                      ),
+                    ],
+                  ),
+                ),
               const PopupMenuItem(
                 value: 'color',
                 child: Row(
@@ -3685,11 +3912,16 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
-          onSelected: (value) {
+          onSelected: (value) async {
             switch (value) {
               case 'pin':
+                HapticFeedback.mediumImpact();
                 setState(() => _isPinned = !_isPinned);
                 _onContentChanged();
+                await _saveNote();
+                break;
+              case 'notification_pin':
+                _toggleNotificationPin();
                 break;
               case 'color':
                 _showColorPicker();
@@ -3728,6 +3960,26 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                 ],
               ),
             ),
+            if (!kIsWeb)
+              PopupMenuItem(
+                value: 'notification_pin',
+                child: Row(
+                  children: [
+                    Icon(
+                      _isPinnedToNotifications
+                          ? Icons.notifications_active
+                          : Icons.notifications_active_outlined,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      _isPinnedToNotifications
+                          ? 'Unpin Notification'
+                          : 'Pin to Notification Bar',
+                    ),
+                  ],
+                ),
+              ),
             const PopupMenuItem(
               value: 'color',
               child: Row(
@@ -4335,6 +4587,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                           Checkbox(
                             value: item.checked,
                             onChanged: _canUserEdit ? (value) {
+                              HapticFeedback.lightImpact();
                               setState(() {
                                 _checklistItems[index] = item.copyWith(
                                   checked: value ?? false,
@@ -4569,28 +4822,35 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: isDesktop
+            ? BorderRadius.circular(20)
+            : const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.all(24),
-      height: MediaQuery.of(context).size.height * 0.75,
+      height: isDesktop 
+          ? MediaQuery.of(context).size.height * 0.7 
+          : MediaQuery.of(context).size.height * 0.75,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+          if (!isDesktop) ...[
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
 
           Row(
             children: [

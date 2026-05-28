@@ -18,6 +18,11 @@ class LocalNotesService {
   // Notes CRUD — delegates to LocalDatabaseService
   // ===========================================================
 
+  /// Get all notes (active + trashed)
+  Future<List<Note>> getNotes() async {
+    return await _localDb.getNotes(_userId.isEmpty ? null : _userId);
+  }
+
   /// Get all active (non-trashed) notes
   Future<List<Note>> getActiveNotes() async {
     return await _localDb.getActiveNotes(_userId.isEmpty ? null : _userId);

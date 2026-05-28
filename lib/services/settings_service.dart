@@ -1,6 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sqflite/sqflite.dart';
 import 'auth_service.dart';
+import 'local_database_service.dart';
+import 'sync_engine.dart';
 
 /// UserSettings Model
 class UserSettings {
@@ -80,7 +83,7 @@ class UserSettings {
   }
 }
 
-/// Settings Service - Supabase implementation
+/// Settings Service - Supabase/SQLite implementation
 class SettingsService {
   final SupabaseClient _client = Supabase.instance.client;
   final AuthService _auth;
@@ -91,6 +94,21 @@ class SettingsService {
 
   /// Get user settings
   Future<UserSettings> getSettings() async {
+    if (!kIsWeb) {
+      final local = await LocalDatabaseService.instance.getUserSettings(_userId);
+      if (local != null) {
+        return UserSettings(
+          id: local['id'] as String?,
+          viewMode: local['sort_order'] ?? 'list',
+          sortBy: local['sort_order'] ?? 'modified',
+          darkMode: false,
+          notificationsEnabled: (local['haptic_enabled'] as int?) == 1,
+          isPremium: (local['is_premium'] as int?) == 1,
+        );
+      }
+      return UserSettings();
+    }
+
     if (_userId.isEmpty) return UserSettings();
 
     try {
@@ -134,6 +152,36 @@ class SettingsService {
 
   /// Update specific setting
   Future<void> updateSetting(String key, dynamic value) async {
+    if (!kIsWeb) {
+      final snakeKey = key.replaceAllMapped(
+        RegExp(r'[A-Z]'),
+        (m) => '_${m.group(0)!.toLowerCase()}',
+      );
+      var dbValue = value;
+      if (value is bool) {
+        dbValue = value ? 1 : 0;
+      }
+
+      final db = await LocalDatabaseService.instance.database;
+      await db.update(
+        'user_settings',
+        {
+          snakeKey: dbValue,
+          'sync_status': SyncStatus.pendingUpdate,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+        where: _userId.isNotEmpty ? 'user_id = ?' : '1=1',
+        whereArgs: _userId.isNotEmpty ? [_userId] : null,
+      );
+
+      if (_userId.isNotEmpty) {
+        SyncEngine(LocalDatabaseService.instance, _auth).sync().catchError((e) {
+          debugPrint('Background settings sync error: $e');
+        });
+      }
+      return;
+    }
+
     if (_userId.isEmpty) return;
 
     try {
@@ -164,6 +212,29 @@ class SettingsService {
 
   /// Save full settings
   Future<void> saveSettings(UserSettings settings) async {
+    if (!kIsWeb) {
+      final db = await LocalDatabaseService.instance.database;
+      await db.insert(
+        'user_settings',
+        {
+          'user_id': _userId.isEmpty ? null : _userId,
+          'sort_order': settings.sortBy,
+          'is_premium': settings.isPremium ? 1 : 0,
+          'haptic_enabled': settings.notificationsEnabled ? 1 : 0,
+          'sync_status': SyncStatus.pendingUpdate,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      if (_userId.isNotEmpty) {
+        SyncEngine(LocalDatabaseService.instance, _auth).sync().catchError((e) {
+          debugPrint('Background settings sync error: $e');
+        });
+      }
+      return;
+    }
+
     if (_userId.isEmpty) return;
 
     try {

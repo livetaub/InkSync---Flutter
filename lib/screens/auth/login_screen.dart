@@ -1,10 +1,13 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/auth_service.dart';
 import '../../config/theme.dart';
 import '../../utils/platform_helper.dart' as platform;
 import '../subscription/mobile_paywall_screen.dart';
+import '../../utils/ui_helper.dart';
 
 class LoginScreen extends StatefulWidget {
   final bool showRegisterDialog;
@@ -33,7 +36,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (Supabase.instance.client.auth.currentSession != null) {
+      final currentRouteName = ModalRoute.of(context)?.settings.name;
+      if (currentRouteName != '/app' && currentRouteName != '/home' && Supabase.instance.client.auth.currentSession != null) {
         Navigator.pushReplacementNamed(context, '/app');
       } else if (widget.showRegisterDialog) {
         _showCreateAccountDialog();
@@ -110,44 +114,47 @@ class _LoginScreenState extends State<LoginScreen> {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         return AlertDialog(
           title: const Text('Reset Password'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Enter your email address and we\'ll send you a link to reset your password.',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    hintText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    filled: true,
-                    fillColor: isDark ? Colors.white10 : Colors.grey.shade50,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+          content: Container(
+            width: 380,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Enter your email address and we\'ll send you a link to reset your password.',
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                      fontSize: 14,
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      hintText: 'Email',
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      filled: true,
+                      fillColor: isDark ? Colors.white10 : Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your email';
+                      }
+                      if (!value.contains('@')) {
+                        return 'Please enter a valid email';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -168,26 +175,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     );
                     if (context.mounted) {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Reset link sent! If you don\'t see it, please check your spam folder.',
-                          ),
-                          backgroundColor: AppTheme.primaryColor,
-                          duration: Duration(seconds: 5),
-                        ),
-                      );
+                      showSuccessSnackBar(context, 'Reset link sent! If you don\'t see it, please check your spam folder.');
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Error: ${e.toString().replaceAll('Exception: ', '')}',
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      showErrorSnackBar(context, 'Error: ${e.toString().replaceAll('Exception: ', '')}');
                     }
                   }
                 }
@@ -203,7 +195,6 @@ class _LoginScreenState extends State<LoginScreen> {
       },
     );
   }
-
   void _showCreateAccountDialog() {
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
@@ -212,8 +203,8 @@ class _LoginScreenState extends State<LoginScreen> {
     bool obscurePassword = true;
     bool obscureConfirmPassword = true;
     bool isLoading = false;
+    bool agreeToTerms = false;
     String? errorMessage;
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -538,6 +529,50 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               const SizedBox(height: 20),
 
+                              // Checkbox for Terms of Service
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: agreeToTerms,
+                                    activeColor: const Color(0xFF10B981),
+                                    onChanged: (val) {
+                                      setDialogState(() {
+                                        agreeToTerms = val ?? false;
+                                      });
+                                    },
+                                  ),
+                                  Expanded(
+                                    child: RichText(
+                                      text: TextSpan(
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                        ),
+                                        children: [
+                                          const TextSpan(text: 'I agree to the '),
+                                          TextSpan(
+                                            text: 'Terms of Service & Privacy Policy',
+                                            style: const TextStyle(
+                                              color: Color(0xFF10B981),
+                                              fontWeight: FontWeight.w600,
+                                              decoration: TextDecoration.underline,
+                                            ),
+                                            recognizer: TapGestureRecognizer()
+                                              ..onTap = () async {
+                                                final uri = Uri.parse('https://inksyncnote.com/terms');
+                                                if (await canLaunchUrl(uri)) {
+                                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                                }
+                                              },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+
                               // Error message
                               if (errorMessage != null)
                                 Container(
@@ -581,6 +616,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                       : () async {
                                           if (formKey.currentState!
                                               .validate()) {
+                                            if (!agreeToTerms) {
+                                              setDialogState(() {
+                                                errorMessage = 'You must agree to the Terms of Service & Privacy Policy to continue.';
+                                              });
+                                              return;
+                                            }
                                             setDialogState(() {
                                               isLoading = true;
                                               errorMessage = null;

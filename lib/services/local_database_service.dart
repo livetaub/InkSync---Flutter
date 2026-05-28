@@ -180,6 +180,30 @@ class LocalDatabaseService {
     return rows.map(_rowToNote).toList();
   }
 
+  /// Get all notes (active + trashed) for a user
+  Future<List<Note>> getNotes(String? userId) async {
+    final db = await database;
+    List<Map<String, dynamic>> rows;
+
+    if (userId != null && userId.isNotEmpty) {
+      rows = await db.query(
+        'notes',
+        where: 'user_id = ? AND sync_status != ?',
+        whereArgs: [userId, SyncStatus.pendingDelete],
+        orderBy: 'updated_at DESC',
+      );
+    } else {
+      rows = await db.query(
+        'notes',
+        where: 'sync_status != ?',
+        whereArgs: [SyncStatus.pendingDelete],
+        orderBy: 'updated_at DESC',
+      );
+    }
+
+    return rows.map(_rowToNote).toList();
+  }
+
   /// Get a single note by ID
   Future<Note?> getNote(String noteId) async {
     final db = await database;
@@ -384,6 +408,39 @@ class LocalDatabaseService {
     } else {
       await db.update('tags', {'sync_status': SyncStatus.pendingDelete}, where: 'id = ?', whereArgs: [tagId]);
     }
+  }
+
+  /// Get tag by ID
+  Future<Tag?> getTag(String tagId) async {
+    final db = await database;
+    final rows = await db.query('tags', where: 'id = ?', whereArgs: [tagId]);
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    return Tag(
+      id: row['id'] as String?,
+      name: row['name'] as String? ?? '',
+      type: row['type'] as String? ?? 'text',
+      color: row['color'] as String? ?? '#10B981',
+      order: row['order'] as int? ?? 0,
+    );
+  }
+
+  /// Reorder tags
+  Future<void> reorderTags(List<Tag> tags) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      for (int i = 0; i < tags.length; i++) {
+        final tag = tags[i];
+        if (tag.id != null) {
+          await txn.update(
+            'tags',
+            {'order': i, 'sync_status': SyncStatus.pendingUpdate},
+            where: 'id = ?',
+            whereArgs: [tag.id],
+          );
+        }
+      }
+    });
   }
 
   /// Get all tags pending sync

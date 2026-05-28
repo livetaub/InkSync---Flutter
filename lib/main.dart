@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'utils/platform_helper.dart' as platform;
 import 'config/theme.dart';
 import 'config/supabase_config.dart';
+import 'utils/ui_helper.dart';
 import 'providers/theme_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/auth_service.dart'; // Legacy wrapper around Supabase
@@ -28,6 +30,7 @@ import 'screens/shared/shared_note_screen.dart';
 import 'screens/note_edit/note_edit_screen.dart';
 import 'screens/trash/trash_screen.dart';
 import 'screens/snapshot/snapshot_viewer_screen.dart';
+import 'screens/auth/note_unlock_verification_screen.dart';
 import 'screens/checkout/checkout_entry.dart';
 import 'widgets/main_menu_sheet.dart';
 import 'widgets/web_sidebar.dart';
@@ -35,6 +38,8 @@ import 'widgets/mobile_sidebar.dart';
 import 'screens/auth/welcome_screen.dart';
 
 import 'providers/selection_provider.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +60,22 @@ void main() async {
   // Mobile-only: Initialize local database, notifications, and subscriptions
   if (!kIsWeb) {
     await NotificationService.instance.init();
+    NotificationService.onNotificationTapped = (noteId) async {
+      try {
+        final authService = AuthService();
+        final notesService = NotesService(authService);
+        final note = await notesService.getNote(noteId);
+        if (note != null && navigatorKey.currentState != null) {
+          navigatorKey.currentState!.push(
+            MaterialPageRoute(
+              builder: (_) => NoteEditScreen(note: note),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error handling notification tap: $e');
+      }
+    };
     // RevenueCat will be fully initialized after auth is resolved
     // (see _triggerMobileSync in _MainNavigationState)
   }
@@ -86,6 +107,7 @@ class InkSyncApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
+            navigatorKey: navigatorKey,
             title: 'InkSync',
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
@@ -145,6 +167,12 @@ class InkSyncApp extends StatelessWidget {
         return MaterialPageRoute(
           builder: (_) => CheckoutScreen(plan: plan, period: period),
         );
+      case '/note-unlock':
+        final token = uri.queryParameters['token'] ?? '';
+        final noteId = uri.queryParameters['note_id'] ?? '';
+        return MaterialPageRoute(
+          builder: (_) => NoteUnlockVerificationScreen(token: token, noteId: noteId),
+        );
       default:
         return MaterialPageRoute(builder: (_) => const AuthWrapper());
     }
@@ -164,15 +192,151 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _isCheckingGuest = true;
   bool _isGuestMode = false;
+  StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final AuthChangeEvent event = data.event;
+      if (event == AuthChangeEvent.passwordRecovery) {
+        _handlePasswordRecovery();
+      }
+    });
     if (!kIsWeb) {
       _checkGuestMode();
     } else {
       _isCheckingGuest = false;
     }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handlePasswordRecovery() async {
+    final prefs = await SharedPreferences.getInstance();
+    final pendingNoteId = prefs.getString('pending_unlock_note_id');
+    if (pendingNoteId != null) {
+      await prefs.remove('pending_unlock_note_id');
+      try {
+        final authService = AuthService();
+        final notesService = NotesService(authService);
+        
+        // Remove lock first
+        await notesService.updateNote(pendingNoteId, {
+          'isLocked': false,
+          'lockPassword': null,
+        });
+
+        if (mounted) {
+          _showNewNoteLockPasswordDialog(pendingNoteId);
+        }
+      } catch (e) {
+        debugPrint('Error unlocking note: $e');
+      }
+    }
+  }
+
+  void _showNewNoteLockPasswordDialog(String noteId) {
+    final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.lock_reset, color: AppTheme.primaryColor),
+            SizedBox(width: 8),
+            Text('Set Note Password'),
+          ],
+        ),
+        content: Container(
+          width: 380,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Identity verified! The note lock was successfully removed. '
+                  'Set a new note-specific password below, or leave it blank to keep the note unlocked.',
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    hintText: 'New Note Password',
+                    prefixIcon: Icon(Icons.key),
+                  ),
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && value.length < 4) {
+                      return 'Password must be at least 4 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Confirm Note Password',
+                    prefixIcon: Icon(Icons.key),
+                  ),
+                  validator: (value) {
+                    if (value != passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Keep Unlocked'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState?.validate() == true) {
+                try {
+                  final hasPassword = passwordController.text.isNotEmpty;
+                  final authService = AuthService();
+                  final notesService = NotesService(authService);
+                  
+                  await notesService.updateNote(noteId, {
+                    'isLocked': hasPassword,
+                    'lockPassword': hasPassword ? passwordController.text : null,
+                  });
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    showSuccessSnackBar(context, hasPassword
+                        ? 'New note password set successfully!'
+                        : 'Note will remain unlocked.');
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    showErrorSnackBar(context, 'Failed to update note: $e');
+                  }
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _checkGuestMode() async {
@@ -273,6 +437,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
         if (session != null) {
           // Web-only: Check for a pending plan from OAuth signup flow
           if (kIsWeb) {
+            // Clean URL query parameters to avoid loops/stuck codes
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              platform.replaceHistoryState('/app');
+            });
+
             final pendingPlan = platform.getLocalStorageValue('pending_plan');
             final pendingPeriod = platform.getLocalStorageValue('pending_period');
             if (pendingPlan != null && pendingPlan.isNotEmpty) {
@@ -280,7 +449,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               platform.removeLocalStorageValue('pending_period');
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 final origin = platform.getLocationOrigin();
-                platform.setLocationHref('$origin/#/checkout?plan=$pendingPlan&period=${pendingPeriod ?? 'monthly'}');
+                platform.setLocationHref('$origin/checkout?plan=$pendingPlan&period=${pendingPeriod ?? 'monthly'}');
               });
             }
           }
@@ -348,7 +517,10 @@ class _MainNavigationState extends State<MainNavigation> {
   /// Mobile: initial sync + subscription setup on app launch
   Future<void> _triggerMobileSync() async {
     final authService = Provider.of<AuthService>(context, listen: false);
-    if (authService.isLoggedIn) {
+    if (authService.isLoggedIn && authService.currentUserId != null) {
+      // Migrate guest notes/tags to the authenticated user ID
+      await LocalDatabaseService.instance.migrateGuestData(authService.currentUserId!);
+
       // Initialize RevenueCat with the authenticated user
       final subService = SubscriptionService.instance;
       await subService.initialize(authService);
@@ -363,20 +535,29 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   /// Check if the user arrived via a snapshot import link after login.
-  /// Web-only: URL pattern: /#/login?import_snapshot=TOKEN
+  /// Web-only: URL pattern: /login?import_snapshot=TOKEN (also supports legacy /#/login?import_snapshot=TOKEN)
   Future<void> _checkPendingSnapshotImport() async {
     if (!kIsWeb) return;
     try {
-      final fragment = platform.getLocationHash();
-      if (!fragment.contains('import_snapshot=')) return;
-
-      // Parse token from fragment
-      final fragmentUri = Uri.parse(fragment.replaceFirst('#', ''));
-      final token = fragmentUri.queryParameters['import_snapshot'];
+      final href = platform.getLocationHref();
+      final uri = Uri.parse(href);
+      
+      // Try path query parameters first
+      String? token = uri.queryParameters['import_snapshot'];
+      
+      // Fallback: check hash fragment (legacy)
+      if (token == null || token.isEmpty) {
+        final fragment = platform.getLocationHash();
+        if (fragment.contains('import_snapshot=')) {
+          final fragmentUri = Uri.parse(fragment.replaceFirst('#', ''));
+          token = fragmentUri.queryParameters['import_snapshot'];
+        }
+      }
+      
       if (token == null || token.isEmpty) return;
 
       // Clean the URL immediately to prevent re-importing on refresh
-      platform.replaceHistoryState('${platform.getLocationOrigin()}/#/app');
+      platform.replaceHistoryState('${platform.getLocationOrigin()}/app');
 
       // Fetch the snapshot
       final snapshot = await Supabase.instance.client
@@ -398,23 +579,7 @@ class _MainNavigationState extends State<MainNavigation> {
         // Refresh the note lists
         _performDataSync();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text('"${newNote.title.isNotEmpty ? newNote.title : 'Untitled'}" imported to your notes'),
-                ),
-              ],
-            ),
-            backgroundColor: AppTheme.primaryColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        showSuccessSnackBar(context, '"${newNote.title.isNotEmpty ? newNote.title : 'Untitled'}" imported to your notes');
       }
     } catch (e) {
       debugPrint('Error importing snapshot: $e');
@@ -456,9 +621,7 @@ class _MainNavigationState extends State<MainNavigation> {
       await _performDataSync();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sync failed: $e')),
-        );
+        showErrorSnackBar(context, 'Sync failed: $e');
       }
     } finally {
       if (mounted) {

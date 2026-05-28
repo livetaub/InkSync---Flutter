@@ -108,7 +108,7 @@ class _SnapshotViewerScreenState extends State<SnapshotViewerScreen> {
     if (user == null) {
       // Not logged in → redirect to login with import token
       final origin = platform.getLocationOrigin();
-      platform.setLocationHref('$origin/#/login?import_snapshot=${widget.token}');
+      platform.setLocationHref('$origin/login?import_snapshot=${widget.token}');
       return;
     }
 
@@ -139,7 +139,7 @@ class _SnapshotViewerScreenState extends State<SnapshotViewerScreen> {
               textColor: Colors.white,
               onPressed: () {
                 final origin = platform.getLocationOrigin();
-                platform.setLocationHref('$origin/#/app');
+                platform.setLocationHref('$origin/app');
               },
             ),
           ),
@@ -536,32 +536,35 @@ class _SnapshotViewerScreenState extends State<SnapshotViewerScreen> {
     final checklistItems =
         (_snapshot!['checklist_items'] as List<dynamic>?) ?? [];
 
-    return CustomPaint(
-      painter: _SnapshotLinedPaperPainter(
-        lineColor: lineColor,
-        lineHeight: 28.0,
-        topPadding: 16.0,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: noteType == 'checklist'
-            ? _buildChecklistView(checklistItems, isDark)
-            : SelectableText(
-                content,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: isDark ? Colors.white70 : AppTheme.textSecondary,
-                  height: 28.0 / 15.0,
-                  letterSpacing: 0.1,
+    return SizedBox(
+      width: double.infinity,
+      child: CustomPaint(
+        painter: _SnapshotLinedPaperPainter(
+          lineColor: lineColor,
+          lineHeight: 28.0,
+          topPadding: 16.0,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: noteType == 'checklist'
+              ? _buildChecklistView(checklistItems, isDark)
+              : SelectableText(
+                  content,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: isDark ? Colors.white70 : AppTheme.textSecondary,
+                    height: 28.0 / 15.0,
+                    letterSpacing: 0.1,
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }
 
   Widget _buildChecklistView(List<dynamic> items, bool isDark) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: items.map((item) {
         final checked = item['checked'] == true;
         final text = item['text'] ?? '';
@@ -726,7 +729,7 @@ class _SnapshotViewerScreenState extends State<SnapshotViewerScreen> {
     return ElevatedButton.icon(
       onPressed: () {
         final origin = platform.getLocationOrigin();
-        platform.openInNewTab('$origin/#/login');
+        platform.openInNewTab('$origin/login');
       },
       icon: const Icon(Icons.person_add_rounded, size: 18),
       label: const Text('Sign Up Free'),

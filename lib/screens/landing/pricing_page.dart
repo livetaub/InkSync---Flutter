@@ -1,7 +1,9 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../../utils/platform_helper.dart' as platform;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/auth_service.dart';
 import '../../config/theme.dart';
 
@@ -443,6 +445,7 @@ class _PricingPageState extends State<PricingPage> {
     bool obscurePassword = true;
     bool obscureConfirm = true;
     bool isLoading = false;
+    bool agreeToTerms = false;
     String? errorMessage;
     final isPaid = planId != 'free';
 
@@ -542,7 +545,50 @@ class _PricingPageState extends State<PricingPage> {
                             _dialogPasswordField(confirmPasswordController, 'Confirm password', obscureConfirm, () => setDialogState(() => obscureConfirm = !obscureConfirm), matchController: passwordController),
                           ]),
                         ),
-                        const SizedBox(height: 20),
+                        // Checkbox for Terms of Service
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: agreeToTerms,
+                              activeColor: const Color(0xFF10B981),
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  agreeToTerms = val ?? false;
+                                });
+                              },
+                            ),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF475569),
+                                    fontFamily: 'Inter',
+                                  ),
+                                  children: [
+                                    const TextSpan(text: 'I agree to the '),
+                                    TextSpan(
+                                      text: 'Terms of Service & Privacy Policy',
+                                      style: const TextStyle(
+                                        color: Color(0xFF10B981),
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = () async {
+                                          final uri = Uri.parse('https://inksyncnote.com/terms');
+                                          if (await canLaunchUrl(uri)) {
+                                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                          }
+                                        },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
 
                         // ── Error ──
                         if (errorMessage != null)
@@ -564,6 +610,12 @@ class _PricingPageState extends State<PricingPage> {
                           child: ElevatedButton(
                             onPressed: isLoading ? null : () async {
                               if (!formKey.currentState!.validate()) return;
+                              if (!agreeToTerms) {
+                                setDialogState(() {
+                                  errorMessage = 'You must agree to the Terms of Service & Privacy Policy to continue.';
+                                });
+                                return;
+                              }
                               setDialogState(() { isLoading = true; errorMessage = null; });
                               try {
                                 final authService = Provider.of<AuthService>(ctx, listen: false);

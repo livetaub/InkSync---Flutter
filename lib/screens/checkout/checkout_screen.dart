@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:js' as js;
 import 'dart:html' as html;
 import 'dart:ui_web' as ui;
+import 'dart:js_util' as js_util;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../utils/platform_helper.dart' as platform;
@@ -71,7 +72,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Mount Stripe Elements after the container is in the DOM
       Future.delayed(const Duration(milliseconds: 300), () {
         try {
-          final result = js.context.callMethod(
+          final result = js_util.callMethod(
+            html.window,
             'initStripeElements',
             [StripeConfig.publishableKey, container.id],
           );
@@ -110,8 +112,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
 
     try {
-      // 1. Check if card is complete
-      final isComplete = js.context.callMethod('isStripeCardComplete', []);
+      final isComplete = js_util.callMethod(html.window, 'isStripeCardComplete', []);
       if (isComplete != true) {
         setState(() {
           _cardError = 'Please enter your complete card details.';
@@ -120,15 +121,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return;
       }
 
-      // 2. Create PaymentMethod via Stripe.js (card → secure token)
       final userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
-      final resultJson = await js.context.callMethod(
+      final res = js_util.callMethod(
+        html.window,
         'createStripePaymentMethod',
         [userEmail, ''],
       );
 
-      final result = jsonDecode(resultJson.toString());
+      String resultJson;
+      if (res == null) {
+        resultJson = '{"error": "Stripe bridge returned null"}';
+      } else if (res is! String) {
+        final promiseResult = await js_util.promiseToFuture(res);
+        resultJson = promiseResult.toString();
+      } else {
+        resultJson = res;
+      }
 
+      final result = jsonDecode(resultJson);
       if (result['error'] != null) {
         setState(() {
           _cardError = result['error'];
@@ -139,7 +149,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       final paymentMethodId = result['paymentMethodId'] as String;
 
-      // 3. Send the secure token to our Supabase Edge Function
       final response = await Supabase.instance.client.functions.invoke(
         'create-subscription',
         body: {
@@ -162,22 +171,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final status = data['status'] as String?;
 
       if (status == 'active') {
-        // Payment succeeded — navigate to success screen
         if (mounted) {
           final origin = platform.getLocationOrigin();
-          platform.setLocationHref('$origin/#/checkout-success');
+          platform.setLocationHref('$origin/checkout-success');
         }
       } else if (status == 'requires_action') {
-        // 3D Secure authentication required
         final clientSecret = data['clientSecret'] as String;
-        final confirmResult = await js.context.callMethod(
+        final res = js_util.callMethod(
+          html.window,
           'confirmStripePayment',
           [clientSecret],
         );
-        // After 3DS, the webhook will handle activation
+        if (res != null && res is! String) {
+          await js_util.promiseToFuture(res);
+        }
+        
         if (mounted) {
           final origin = html.window.location.origin;
-          html.window.location.href = '$origin/#/checkout-success';
+          html.window.location.href = '$origin/checkout-success';
         }
       } else {
         setState(() {
@@ -185,9 +196,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } on FunctionException catch (e) {
+      debugPrint('Supabase FunctionException caught during checkout: status=${e.status}, details=${e.details}');
+      String displayError = 'Payment failed. Please try again.';
+      if (e.details is Map) {
+        displayError = e.details['error']?.toString() ?? displayError;
+      } else if (e.details is String) {
+        try {
+          final decoded = jsonDecode(e.details as String);
+          displayError = decoded['error']?.toString() ?? displayError;
+        } catch (_) {
+          displayError = e.details.toString();
+        }
+      } else if (e.reasonPhrase != null) {
+        displayError = e.reasonPhrase!;
+      }
       setState(() {
-        _error = 'Something went wrong. Please try again.';
+        _error = displayError;
+        _isLoading = false;
+      });
+    } catch (e, stackTrace) {
+      debugPrint('Exception caught during checkout: $e');
+      debugPrintStack(stackTrace: stackTrace);
+      setState(() {
+        _error = 'Checkout Error: $e';
         _isLoading = false;
       });
     }
@@ -483,7 +515,7 @@ class _CheckoutSuccessScreenState extends State<CheckoutSuccessScreen>
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         final origin = platform.getLocationOrigin();
-        platform.setLocationHref('$origin/#/app');
+        platform.setLocationHref('$origin/app');
       }
     });
   }
@@ -560,7 +592,7 @@ class _CheckoutSuccessScreenState extends State<CheckoutSuccessScreen>
                     child: ElevatedButton(
                       onPressed: () {
                         final origin = platform.getLocationOrigin();
-                        platform.setLocationHref('$origin/#/app');
+                        platform.setLocationHref('$origin/app');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,

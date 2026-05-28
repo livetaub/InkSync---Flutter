@@ -95,3 +95,21 @@ function isStripeCardComplete() {
 function getStripeCardError() {
   return _cardError;
 }
+
+/// Confirm a payment intent that requires 3D Secure / additional authentication
+async function confirmStripePayment(clientSecret) {
+  if (!_stripe) {
+    return JSON.stringify({ error: 'Stripe not initialized' });
+  }
+
+  try {
+    const { paymentIntent, error } = await _stripe.confirmCardPayment(clientSecret);
+    if (error) {
+      return JSON.stringify({ error: error.message });
+    }
+    return JSON.stringify({ status: paymentIntent.status });
+  } catch (e) {
+    console.error('confirmStripePayment error:', e);
+    return JSON.stringify({ error: e.message });
+  }
+}

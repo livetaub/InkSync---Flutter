@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/theme.dart';
 
 /// WelcomeScreen — First screen shown on mobile app install.
@@ -106,13 +108,35 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               const SizedBox(height: 12),
 
               // Body
-              Text(
-                'Notes created as a guest are saved securely on this device, but won\'t sync across your other devices until you create an account.',
+              RichText(
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14.5,
-                  height: 1.55,
-                  color: isDark ? Colors.white70 : AppTheme.textSecondary,
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.55,
+                    color: isDark ? Colors.white70 : AppTheme.textSecondary,
+                    fontFamily: 'Inter',
+                  ),
+                  children: [
+                    const TextSpan(text: 'Notes created as a guest are saved securely on this device, but won\'t sync across your other devices until you create an account.\n\n'),
+                    const TextSpan(text: 'By continuing, you agree to our '),
+                    TextSpan(
+                      text: 'Terms of Service & Privacy Policy',
+                      style: const TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () async {
+                          final uri = Uri.parse('https://inksyncnote.com/terms');
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          }
+                        },
+                    ),
+                    const TextSpan(text: '.'),
+                  ],
                 ),
               ),
               const SizedBox(height: 28),
@@ -191,7 +215,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   // Skip button
                   _buildSkipButton(isDark),
 
-                  SizedBox(height: screenHeight * 0.05),
+                  const SizedBox(height: 12),
+
+                  // Legal disclaimer
+                  _buildLegalDisclaimer(isDark),
+
+                  SizedBox(height: screenHeight * 0.04),
                 ],
               ),
             ),
@@ -354,6 +383,39 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             size: 12,
             color: isDark ? Colors.white38 : AppTheme.textMuted,
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegalDisclaimer(bool isDark) {
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: TextStyle(
+          fontSize: 12,
+          color: isDark ? Colors.white38 : AppTheme.textMuted,
+          height: 1.4,
+          fontFamily: 'Inter',
+        ),
+        children: [
+          const TextSpan(text: 'By continuing, you agree to our '),
+          TextSpan(
+            text: 'Terms of Service & Privacy Policy',
+            style: TextStyle(
+              color: isDark ? Colors.white70 : AppTheme.textSecondary,
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.underline,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () async {
+                final uri = Uri.parse('https://inksyncnote.com/terms');
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+          ),
+          const TextSpan(text: '.'),
         ],
       ),
     );

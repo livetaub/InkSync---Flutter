@@ -163,7 +163,7 @@ class _AndroidCheckoutScreenState extends State<AndroidCheckoutScreen> {
       debugPrint('Error creating checkout session: $e');
       if (mounted) {
         setState(() {
-          _error = 'Something went wrong. Please try again.';
+          _error = e.toString();
           _isCreatingSession = false;
         });
       }

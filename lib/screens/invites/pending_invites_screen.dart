@@ -6,7 +6,9 @@ import '../../services/notes_service.dart';
 
 /// Screen to view and manage pending collaboration invites
 class PendingInvitesScreen extends StatefulWidget {
-  const PendingInvitesScreen({super.key});
+  final bool isDialog;
+
+  const PendingInvitesScreen({super.key, this.isDialog = false});
 
   @override
   State<PendingInvitesScreen> createState() => _PendingInvitesScreenState();
@@ -74,6 +76,62 @@ class _PendingInvitesScreenState extends State<PendingInvitesScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final content = DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          if (widget.isDialog)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+              child: Row(
+                children: [
+                  const SizedBox(width: 48),
+                  Expanded(
+                    child: Text(
+                      'Invites',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+          TabBar(
+            labelColor: AppTheme.primaryColor,
+            unselectedLabelColor: isDark ? Colors.white54 : Colors.black54,
+            indicatorColor: AppTheme.primaryColor,
+            tabs: const [
+              Tab(text: 'Pending'),
+              Tab(text: 'Declined'),
+            ],
+          ),
+          if (widget.isDialog) const Divider(height: 1),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    children: [
+                      _buildList(_pendingInvites, isDark, isDeclined: false),
+                      _buildList(_declinedInvites, isDark, isDeclined: true),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+
+    if (widget.isDialog) {
+      return content;
+    }
 
     return DefaultTabController(
       length: 2,

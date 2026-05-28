@@ -2,19 +2,38 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
 import 'notes_service.dart'; // Import Tag model
+import 'local_database_service.dart';
+import 'local_notes_service.dart';
+import 'sync_engine.dart';
+
 export 'notes_service.dart' show Tag; // Export Tag for other files
 
-/// Tag Service - manages user tags using Supabase
+/// Tag Service - manages user tags using Supabase/SQLite
 class TagService {
   final AuthService _authService;
   final SupabaseClient _client = Supabase.instance.client;
+  late final LocalNotesService _localNotesService;
 
-  TagService(this._authService);
+  TagService(this._authService) {
+    _localNotesService = LocalNotesService(LocalDatabaseService.instance, _authService);
+  }
 
   String? get _userId => _authService.currentUserId;
 
+  void _triggerBackgroundSync() {
+    if (!kIsWeb && _userId != null && _userId!.isNotEmpty) {
+      SyncEngine(LocalDatabaseService.instance, _authService).sync().catchError((e) {
+        debugPrint('Background sync error: $e');
+      });
+    }
+  }
+
   /// Get all tags ordered by position
   Future<List<Tag>> getTags() async {
+    if (!kIsWeb) {
+      return await _localNotesService.getTags();
+    }
+
     if (_userId == null) return [];
 
     try {
@@ -33,6 +52,10 @@ class TagService {
 
   /// Get tags by type
   Future<List<Tag>> getTagsByType(String type) async {
+    if (!kIsWeb) {
+      return await _localNotesService.getTagsByType(type);
+    }
+
     if (_userId == null) return [];
 
     try {
@@ -52,6 +75,12 @@ class TagService {
 
   /// Create a new tag
   Future<String?> createTag(String name, {String type = 'text'}) async {
+    if (!kIsWeb) {
+      final tagId = await _localNotesService.createTag(name, type: type);
+      _triggerBackgroundSync();
+      return tagId;
+    }
+
     if (_userId == null) return null;
 
     try {
@@ -82,6 +111,12 @@ class TagService {
 
   /// Create default tags for new users
   Future<void> createDefaultTags() async {
+    if (!kIsWeb) {
+      await _localNotesService.createDefaultTags();
+      _triggerBackgroundSync();
+      return;
+    }
+
     if (_userId == null) return;
 
     try {
@@ -106,6 +141,12 @@ class TagService {
     String? name,
     String? color,
   }) async {
+    if (!kIsWeb) {
+      await _localNotesService.updateTag(tagId, name: name, color: color);
+      _triggerBackgroundSync();
+      return;
+    }
+
     try {
       final updates = <String, dynamic>{};
       if (name != null) updates['name'] = name;
@@ -121,6 +162,12 @@ class TagService {
 
   /// Delete tag (notes will need to have this tag removed from their array)
   Future<void> deleteTag(String tagId) async {
+    if (!kIsWeb) {
+      await _localNotesService.deleteTag(tagId);
+      _triggerBackgroundSync();
+      return;
+    }
+
     try {
       // Note: We need an RPC or a manual fetch-and-update to remove a tag from the text[] array
       // For now, delete the tag from the tags table
@@ -132,6 +179,10 @@ class TagService {
 
   /// Get tag by ID
   Future<Tag?> getTag(String tagId) async {
+    if (!kIsWeb) {
+      return await LocalDatabaseService.instance.getTag(tagId);
+    }
+
     try {
       final response = await _client
           .from('tags')
@@ -148,6 +199,12 @@ class TagService {
 
   /// Reorder tags
   Future<void> reorderTags(List<Tag> tags) async {
+    if (!kIsWeb) {
+      await LocalDatabaseService.instance.reorderTags(tags);
+      _triggerBackgroundSync();
+      return;
+    }
+
     if (_userId == null) return;
 
     try {

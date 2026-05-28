@@ -94,6 +94,7 @@ serve(async (req: Request) => {
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         const userId = subscription.metadata?.supabase_user_id;
+        const plan = subscription.metadata?.plan || "premium";
 
         if (!userId) {
           // Try to find user by stripe_customer_id
@@ -113,21 +114,20 @@ serve(async (req: Request) => {
           ).toISOString();
 
           const status = subscription.status;
-          const isActive =
-            status === "active" || status === "trialing";
+          const isActive = status === "active" || status === "trialing";
 
           await supabase
             .from("profiles")
             .update({
               subscription_status: status,
               subscription_period_end: periodEnd,
-              // If subscription is no longer active, downgrade to free
-              ...(isActive ? {} : { account_type: "free" }),
+              stripe_subscription_id: subscription.id,
+              account_type: isActive ? plan : "free",
             })
             .eq("id", profile.id);
 
           console.log(
-            `📝 Subscription updated for user ${profile.id}: ${status}`
+            `📝 Subscription updated for user ${profile.id}: ${status} (plan: ${plan})`
           );
           break;
         }
@@ -144,12 +144,15 @@ serve(async (req: Request) => {
           .update({
             subscription_status: status,
             subscription_period_end: periodEnd,
-            ...(isActive ? {} : { account_type: "free" }),
+            stripe_subscription_id: subscription.id,
+            stripe_customer_id: subscription.customer as string,
+            account_type: isActive ? plan : "free",
+            subscription_origin: "stripe",
           })
           .eq("id", userId);
 
         console.log(
-          `📝 Subscription updated for user ${userId}: ${status}`
+          `📝 Subscription updated for user ${userId}: ${status} (plan: ${plan})`
         );
         break;
       }

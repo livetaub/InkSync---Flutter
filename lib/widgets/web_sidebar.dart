@@ -2,13 +2,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../config/theme.dart';
-import '../screens/tutorial/tutorial_screen.dart';
 import '../screens/help/help_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/invites/pending_invites_screen.dart';
 import '../services/auth_service.dart';
 import '../services/settings_service.dart';
 import '../screens/subscription/subscription_screen.dart';
+import '../utils/ui_helper.dart';
 
 
 final authService = AuthService();
@@ -235,13 +235,19 @@ class _WebSidebarState extends State<WebSidebar> {
           Icons.workspace_premium_rounded,
           'Subscription',
           Colors.amber,
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen())),
+          () => showLargeDialog(
+            context: context,
+            child: const SubscriptionScreen(isDialog: true),
+          ),
         ),
         _buildMenuSubItem(
           Icons.mail_outline_rounded,
           'Pending Invites',
           null,
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingInvitesScreen())),
+          () => showLargeDialog(
+            context: context,
+            child: const PendingInvitesScreen(isDialog: true),
+          ),
         ),
         _buildMenuSubItem(
           Icons.sync_rounded,
@@ -277,13 +283,10 @@ class _WebSidebarState extends State<WebSidebar> {
           Icons.settings_outlined,
           'Settings',
           null,
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
-        ),
-        _buildMenuSubItem(
-          Icons.help_outline_rounded,
-          'Tutorial',
-          null,
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TutorialScreen())),
+          () => showLargeDialog(
+            context: context,
+            child: const SettingsScreen(isDialog: true),
+          ),
         ),
         _buildMenuSubItem(
           Icons.share_outlined,
@@ -298,7 +301,10 @@ class _WebSidebarState extends State<WebSidebar> {
           Icons.feedback_outlined,
           'Help & Feedback',
           null,
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen())),
+          () => showLargeDialog(
+            context: context,
+            child: const HelpScreen(isDialog: true),
+          ),
         ),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 28, vertical: 8),

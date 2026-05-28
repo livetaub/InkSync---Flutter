@@ -7,6 +7,7 @@ String getLocationHash() => '';
 String getLocationOrigin() => '';
 void replaceHistoryState(String url) {}
 void setLocationHref(String url) {}
+String getLocationHref() => '';
 void openInNewTab(String url) {}
 void assignAndReload(String path) {}
 void reloadPage() {}

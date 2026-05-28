@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../services/settings_service.dart';
 import '../../services/auth_service.dart';
@@ -233,6 +234,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: const Text('Dark mode'),
           value: Theme.of(context).brightness == Brightness.dark,
           onChanged: (value) {
+            HapticFeedback.lightImpact();
             final themeProvider = Provider.of<ThemeProvider>(
               context,
               listen: false,
@@ -252,7 +254,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: const Text('Push notifications'),
           subtitle: const Text('Get notified about reminders'),
           value: _settings.notificationsEnabled,
-          onChanged: (value) => _updateSetting('notificationsEnabled', value),
+          onChanged: (value) {
+            HapticFeedback.lightImpact();
+            _updateSetting('notificationsEnabled', value);
+          },
         ),
 
         const SizedBox(height: 16),
@@ -521,12 +526,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Add ${type == 'text' ? 'Note' : 'Checklist'} Tag'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Tag name',
-            border: OutlineInputBorder(),
+        content: SizedBox(
+          width: 380,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Tag name',
+              border: OutlineInputBorder(),
+            ),
           ),
         ),
         actions: [
@@ -561,12 +569,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Edit Tag'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Tag name',
-            border: OutlineInputBorder(),
+        content: SizedBox(
+          width: 380,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Tag name',
+              border: OutlineInputBorder(),
+            ),
           ),
         ),
         actions: [
@@ -600,8 +611,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Tag'),
-        content: Text(
-          'Are you sure you want to delete "${tag.name}"?\n\nNotes with this Tag will just lose the tag.',
+        content: SizedBox(
+          width: 380,
+          child: Text(
+            'Are you sure you want to delete "${tag.name}"?\n\nNotes with this Tag will just lose the tag.',
+          ),
         ),
         actions: [
           TextButton(

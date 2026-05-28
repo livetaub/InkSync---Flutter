@@ -1,0 +1,127 @@
+.terms-page {
+  background-color: var(--bg-color);
+  min-height: 100vh;
+  padding: 80px 24px 120px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.terms-container {
+  max-width: 800px;
+  width: 100%;
+  background: var(--white);
+  border-radius: 24px;
+  padding: 48px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.terms-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.terms-header h1 {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+}
+
+.terms-header .last-updated {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.terms-content {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-main);
+}
+
+.intro-section {
+  font-size: 16px;
+  color: var(--text-main);
+  margin-bottom: 24px;
+}
+
+.divider {
+  border: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin: 32px 0;
+}
+
+.terms-content h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 32px 0 16px;
+  letter-spacing: -0.3px;
+}
+
+.terms-content h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 24px 0 12px;
+}
+
+.terms-content p {
+  margin-bottom: 16px;
+}
+
+.terms-content ul {
+  margin-bottom: 20px;
+  padding-left: 24px;
+}
+
+.terms-content li {
+  margin-bottom: 8px;
+}
+
+.highlight-text {
+  background-color: #FEF08A; /* Light Yellow Alert */
+  border-left: 4px solid var(--primary);
+  padding: 12px 16px;
+  border-radius: 0 12px 12px 0;
+}
+
+.email-link, .contact-email a {
+  color: var(--primary-dark);
+  font-weight: 600;
+  text-decoration: underline;
+  transition: opacity 0.2s ease;
+}
+
+.email-link:hover, .contact-email a:hover {
+  opacity: 0.8;
+}
+
+.contact-footer {
+  text-align: center;
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.contact-email {
+  font-size: 18px;
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .terms-page {
+    padding: 40px 16px 80px;
+  }
+  
+  .terms-container {
+    padding: 24px;
+  }
+
+  .terms-header h1 {
+    font-size: 24px;
+  }
+}

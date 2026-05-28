@@ -11,6 +11,7 @@ import '../../widgets/note_card.dart';
 import '../../widgets/invite_banner.dart';
 import '../note_edit/note_edit_screen.dart';
 import '../../providers/selection_provider.dart';
+import '../../utils/ui_helper.dart';
 
 /// Modern HomeScreen with simplified header - menu in bottom nav
 class HomeScreen extends StatefulWidget {
@@ -74,6 +75,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<Tag> _tags = [];
   List<Map<String, dynamic>> _pendingInvites = [];
   String? _selectedTagName; // null means "All"
+  String? _highlightedNoteId;
   bool _isLoading = true;
   bool _hasLoadedOnce = false;
 
@@ -174,9 +176,7 @@ class HomeScreenState extends State<HomeScreen> {
         setState(() => _isLoading = false);
       }
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error loading notes: $e')));
+        showErrorSnackBar(context, 'Error loading notes: $e');
       }
     }
   }
@@ -199,20 +199,14 @@ class HomeScreenState extends State<HomeScreen> {
       await notesService.acceptInvite(inviteId);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invite accepted! Note added to your collection.'),
-          ),
-        );
+        showSuccessSnackBar(context, 'Invite accepted! Note added to your collection.');
       }
 
       _loadInvites();
       _loadData();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error accepting invite: $e')));
+        showErrorSnackBar(context, 'Error accepting invite: $e');
       }
     }
   }
@@ -230,17 +224,13 @@ class HomeScreenState extends State<HomeScreen> {
       await notesService.rejectInvite(inviteId);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Invite declined')));
+        showSuccessSnackBar(context, 'Invite declined');
       }
 
       _loadInvites();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error declining invite: $e')));
+        showErrorSnackBar(context, 'Error declining invite: $e');
       }
     }
   }
@@ -251,13 +241,15 @@ class HomeScreenState extends State<HomeScreen> {
       final lowerQuery = _globalSearchQuery.toLowerCase();
       return _allNotesCache.where((note) {
         if (note.title.toLowerCase().contains(lowerQuery)) return true;
-        if (note.content.toLowerCase().contains(lowerQuery)) return true;
-        if (note.checklistItems.any(
-          (item) => item.text.toLowerCase().contains(lowerQuery),
-        )) return true;
         if (note.tags.any(
           (tag) => tag.toLowerCase().contains(lowerQuery),
         )) return true;
+        if (!note.isLocked) {
+          if (note.content.toLowerCase().contains(lowerQuery)) return true;
+          if (note.checklistItems.any(
+            (item) => item.text.toLowerCase().contains(lowerQuery),
+          )) return true;
+        }
         return false;
       }).toList();
     }
@@ -345,28 +337,43 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _showNoteContextMenu(Note note) {
-    showModalBottomSheet(
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _highlightedNoteId = note.id;
+    });
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+
+    showAdaptiveModal(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _NoteContextMenu(
-        note: note,
-        onPin: () {
-          Navigator.pop(context);
-          _togglePin(note);
-        },
-        onDelete: () {
-          Navigator.pop(context);
-          _deleteNote(note);
-        },
-        onOpen: () {
-          Navigator.pop(context);
-          _openNote(note);
-        },
+      backgroundColor: isDesktop ? null : Colors.transparent,
+      child: Builder(
+        builder: (ctx) => _NoteContextMenu(
+          note: note,
+          onPin: () {
+            Navigator.pop(ctx);
+            _togglePin(note);
+          },
+          onDelete: () {
+            Navigator.pop(ctx);
+            _deleteNote(note);
+          },
+          onOpen: () {
+            Navigator.pop(ctx);
+            _openNote(note);
+          },
+        ),
       ),
-    );
+    ).then((_) {
+      if (mounted) {
+        setState(() {
+          _highlightedNoteId = null;
+        });
+      }
+    });
   }
 
   Future<void> _togglePin(Note note) async {
+    HapticFeedback.mediumImpact();
     final authService = Provider.of<AuthService>(context, listen: false);
     final notesService = NotesService(authService);
     await notesService.updateNote(note.id!, {'isPinned': !note.isPinned});
@@ -374,14 +381,13 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _deleteNote(Note note) async {
+    HapticFeedback.heavyImpact();
     final authService = Provider.of<AuthService>(context, listen: false);
     final notesService = NotesService(authService);
     await notesService.trashNote(note.id!);
     _loadData();
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Note moved to trash')));
+      showSuccessSnackBar(context, 'Note moved to trash');
     }
   }
 
@@ -426,7 +432,10 @@ class HomeScreenState extends State<HomeScreen> {
                         : _filteredNotes.isEmpty
                         ? _buildEmptyState(isDark)
                         : RefreshIndicator(
-                            onRefresh: _loadData,
+                            onRefresh: () async {
+                              HapticFeedback.lightImpact();
+                              await _loadData();
+                            },
                             color: AppTheme.primaryColor,
                             child: _buildNotesView(settingsProvider.viewMode),
                           ),
@@ -719,6 +728,7 @@ class HomeScreenState extends State<HomeScreen> {
               note: note,
               viewMode: 'list',
               isSelected: selectionProvider.selectedNote?.id == note.id,
+              isHighlighted: _highlightedNoteId == note.id,
               onTap: () => _openNote(note),
               onLongPress: () => _showNoteContextMenu(note),
             );
@@ -742,6 +752,7 @@ class HomeScreenState extends State<HomeScreen> {
               note: note,
               viewMode: 'details',
               isSelected: selectionProvider.selectedNote?.id == note.id,
+              isHighlighted: _highlightedNoteId == note.id,
               onTap: () => _openNote(note),
               onLongPress: () => _showNoteContextMenu(note),
             );
@@ -771,6 +782,7 @@ class HomeScreenState extends State<HomeScreen> {
               note: note,
               viewMode: isLarge ? 'large-grid' : 'grid',
               isSelected: selectionProvider.selectedNote?.id == note.id,
+              isHighlighted: _highlightedNoteId == note.id,
               onTap: () => _openNote(note),
               onLongPress: () => _showNoteContextMenu(note),
             );
@@ -798,25 +810,30 @@ class _NoteContextMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: isDesktop
+            ? BorderRadius.circular(20)
+            : const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      padding: EdgeInsets.fromLTRB(24, 16, 24, isDesktop ? 24 : 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
+          if (!isDesktop) ...[
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
           Text(
             note.title.isEmpty ? 'Untitled' : note.title,
             style: TextStyle(

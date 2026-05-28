@@ -67,14 +67,16 @@ class _SearchScreenState extends State<SearchScreen> {
       // Search in title
       if (note.title.toLowerCase().contains(lowerQuery)) return true;
 
-      // Search in content
-      if (note.content.toLowerCase().contains(lowerQuery)) return true;
+      if (!note.isLocked) {
+        // Search in content
+        if (note.content.toLowerCase().contains(lowerQuery)) return true;
 
-      // Search in checklist items
-      if (note.checklistItems.any(
-        (item) => item.text.toLowerCase().contains(lowerQuery),
-      )) {
-        return true;
+        // Search in checklist items
+        if (note.checklistItems.any(
+          (item) => item.text.toLowerCase().contains(lowerQuery),
+        )) {
+          return true;
+        }
       }
 
       return false;

@@ -52,6 +52,14 @@ void setLocationHref(String url) {
   } catch (_) {}
 }
 
+String getLocationHref() {
+  try {
+    return html.window.location.href;
+  } catch (_) {
+    return '';
+  }
+}
+
 void openInNewTab(String url) {
   try {
     html.window.open(url, '_blank');

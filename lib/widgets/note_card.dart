@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import '../config/theme.dart';
 import '../services/notes_service.dart';
 
@@ -9,6 +10,7 @@ class NoteCard extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final bool isSelected;
+  final bool isHighlighted;
 
   const NoteCard({
     super.key,
@@ -17,19 +19,52 @@ class NoteCard extends StatefulWidget {
     required this.onTap,
     required this.onLongPress,
     this.isSelected = false,
+    this.isHighlighted = false,
   });
 
   @override
   State<NoteCard> createState() => _NoteCardState();
 }
 
-class _NoteCardState extends State<NoteCard> {
+class _NoteCardState extends State<NoteCard> with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   bool _isPressed = false;
+
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(
+      duration: const Duration(milliseconds: 350),
+      vsync: this,
+    );
+    _shakeAnimation = Tween<double>(begin: 0.0, end: 12.0)
+        .chain(CurveTween(curve: const ShakeCurve(count: 3.5)))
+        .animate(_shakeController);
+  }
+
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(NoteCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isHighlighted && !oldWidget.isHighlighted) {
+      _shakeController.forward(from: 0.0);
+    }
+  }
 
   String _getDisplayTitle() {
     if (widget.note.title.isNotEmpty) {
       return widget.note.title;
+    }
+    if (widget.note.isLocked) {
+      return 'Locked Note';
     }
 
     // For Checklists: use first item as title
@@ -54,6 +89,10 @@ class _NoteCardState extends State<NoteCard> {
   }
 
   String _getDisplayContent() {
+    if (widget.note.isLocked) {
+      return 'This note is locked';
+    }
+
     if (widget.note.type == 'checklist') {
       final items = widget.note.checklistItems;
       if (items.isEmpty) return 'No items';
@@ -80,13 +119,23 @@ class _NoteCardState extends State<NoteCard> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Condensed single-line list view
+    final Widget cardChild;
     if (widget.viewMode == 'list') {
-      return _buildCondensedListItem(isDark);
+      cardChild = _buildCondensedListItem(isDark);
+    } else {
+      cardChild = _buildCardView(isDark);
     }
 
-    // Standard card view for details/grid modes
-    return _buildCardView(isDark);
+    return AnimatedBuilder(
+      animation: _shakeAnimation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(_shakeAnimation.value, 0),
+          child: child,
+        );
+      },
+      child: cardChild,
+    );
   }
 
   /// Condensed single-line row for list view: title left, time right
@@ -113,10 +162,10 @@ class _NoteCardState extends State<NoteCard> {
                 ? (_isHovered ? AppTheme.noteBodyColorsDark[widget.note.color] ?? AppTheme.surfaceDark : AppTheme.noteColorsDark[widget.note.color] ?? AppTheme.surfaceDark)
                 : (_isHovered ? AppTheme.noteHeaderColors[widget.note.color] ?? Colors.white : AppTheme.noteColors[widget.note.color] ?? Colors.white),
             borderRadius: BorderRadius.circular(10),
-            border: widget.isSelected
+            border: (widget.isSelected || widget.isHighlighted)
                 ? Border.all(
                     color: AppTheme.primaryColor,
-                    width: 1.5,
+                    width: 2.0,
                   )
                 : Border.all(
                     color: isDark
@@ -124,6 +173,15 @@ class _NoteCardState extends State<NoteCard> {
                         : Colors.grey.withValues(alpha: 0.08),
                     width: 0.5,
                   ),
+            boxShadow: (widget.isSelected || widget.isHighlighted)
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    )
+                  ]
+                : null,
           ),
           child: Row(
             children: [
@@ -135,6 +193,17 @@ class _NoteCardState extends State<NoteCard> {
                     Icons.push_pin_rounded,
                     size: 16,
                     color: AppTheme.primaryColor.withValues(alpha: 0.7),
+                  ),
+                ),
+
+              // Lock indicator
+              if (widget.note.isLocked)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Icon(
+                    Icons.lock_rounded,
+                    size: 16,
+                    color: isDark ? Colors.white54 : Colors.grey,
                   ),
                 ),
 
@@ -203,7 +272,7 @@ class _NoteCardState extends State<NoteCard> {
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
         child: AnimatedScale(
-          scale: _isPressed ? 0.97 : (_isHovered ? 1.01 : 1.0),
+          scale: _isPressed ? 0.97 : ((_isHovered || widget.isHighlighted) ? 1.01 : 1.0),
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOutCubic,
           child: AnimatedContainer(
@@ -212,20 +281,22 @@ class _NoteCardState extends State<NoteCard> {
               color: backgroundColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: widget.isSelected
+                color: (widget.isSelected || widget.isHighlighted)
                     ? AppTheme.primaryColor
                     : (_isHovered
                         ? AppTheme.primaryColor.withValues(alpha: 0.4)
                         : isDark
                             ? Colors.white.withValues(alpha: 0.08)
                             : AppTheme.borderLight),
-                width: widget.isSelected || _isHovered ? 1.5 : 0.5,
+                width: (widget.isSelected || widget.isHighlighted) || _isHovered ? 2.0 : 0.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: _isHovered ? 0.12 : 0.04),
-                  blurRadius: _isHovered ? 16 : 4,
-                  offset: Offset(0, _isHovered ? 8 : 2),
+                  color: widget.isHighlighted
+                      ? AppTheme.primaryColor.withValues(alpha: 0.25)
+                      : Colors.black.withValues(alpha: _isHovered ? 0.12 : 0.04),
+                  blurRadius: widget.isHighlighted ? 16 : (_isHovered ? 16 : 4),
+                  offset: Offset(0, widget.isHighlighted ? 6 : (_isHovered ? 8 : 2)),
                 ),
               ],
             ),
@@ -263,6 +334,15 @@ class _NoteCardState extends State<NoteCard> {
                                       Icons.push_pin_rounded,
                                       size: 14,
                                       color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                if (widget.note.isLocked)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Icon(
+                                      Icons.lock_rounded,
+                                      size: 14,
+                                      color: isDark ? Colors.white54 : Colors.grey,
                                     ),
                                   ),
                               ],
@@ -355,5 +435,16 @@ class _NoteCardState extends State<NoteCard> {
       default:
         return 2;
     }
+  }
+}
+
+/// Custom Curve for damped physical shake animation
+class ShakeCurve extends Curve {
+  const ShakeCurve({this.count = 3.0});
+  final double count;
+
+  @override
+  double transformInternal(double t) {
+    return math.sin(t * count * 2 * math.pi) * (1 - t);
   }
 }

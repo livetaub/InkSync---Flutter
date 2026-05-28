@@ -1,6 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'auth_service.dart';
 import 'debug_service.dart';
+import 'local_database_service.dart';
+import 'local_notes_service.dart';
+import 'sync_engine.dart';
 
 /// Note Model
 class Note {
@@ -265,11 +269,22 @@ class Tag {
 class NotesService {
   final SupabaseClient _client = Supabase.instance.client;
   final AuthService _auth;
+  late final LocalNotesService _localNotesService;
 
-  NotesService(this._auth);
+  NotesService(this._auth) {
+    _localNotesService = LocalNotesService(LocalDatabaseService.instance, _auth);
+  }
 
   String get _userId => _auth.currentUserId ?? '';
   String get _userEmail => _auth.currentUserEmail ?? '';
+
+  void _triggerBackgroundSync() {
+    if (!kIsWeb && _userId.isNotEmpty) {
+      SyncEngine(LocalDatabaseService.instance, _auth).sync().catchError((e) {
+        DebugService.instance.log('Background sync error: $e');
+      });
+    }
+  }
 
   // ===========================================================
   // Notes CRUD
@@ -277,6 +292,10 @@ class NotesService {
 
   /// Get all notes for current user
   Future<List<Note>> getNotes() async {
+    if (!kIsWeb) {
+      return await _localNotesService.getNotes();
+    }
+
     try {
       final response = await _client
           .from('notes')
@@ -293,6 +312,10 @@ class NotesService {
 
   /// Get active (non-trashed) notes (owned + shared)
   Future<List<Note>> getActiveNotes() async {
+    if (!kIsWeb) {
+      return await _localNotesService.getActiveNotes();
+    }
+
     try {
       // Get own notes
       final ownResponse = await _client
@@ -330,6 +353,10 @@ class NotesService {
 
   /// Get trashed notes
   Future<List<Note>> getTrashedNotes() async {
+    if (!kIsWeb) {
+      return await _localNotesService.getTrashedNotes();
+    }
+
     try {
       final response = await _client
           .from('notes')
@@ -347,6 +374,10 @@ class NotesService {
 
   /// Get a single note by ID
   Future<Note?> getNote(String noteId) async {
+    if (!kIsWeb) {
+      return await _localNotesService.getNote(noteId);
+    }
+
     try {
       final response = await _client
           .from('notes')
@@ -362,6 +393,12 @@ class NotesService {
 
   /// Create a new note
   Future<Note?> createNote(Note note) async {
+    if (!kIsWeb) {
+      final created = await _localNotesService.createNote(note);
+      _triggerBackgroundSync();
+      return created;
+    }
+
     try {
       final data = note.toSupabase();
       data['user_id'] = _userId;
@@ -383,6 +420,12 @@ class NotesService {
 
   /// Update an existing note
   Future<void> updateNote(String noteId, Map<String, dynamic> updates) async {
+    if (!kIsWeb) {
+      await _localNotesService.updateNote(noteId, updates);
+      _triggerBackgroundSync();
+      return;
+    }
+
     try {
       // Convert camelCase to snake_case for Supabase
       final supabaseUpdates = <String, dynamic>{};
@@ -400,6 +443,12 @@ class NotesService {
 
   /// Delete a note permanently
   Future<void> deleteNote(String noteId) async {
+    if (!kIsWeb) {
+      await _localNotesService.deleteNote(noteId);
+      _triggerBackgroundSync();
+      return;
+    }
+
     try {
       await _client.from('notes').delete().eq('id', noteId);
     } catch (e) {
@@ -409,11 +458,22 @@ class NotesService {
 
   /// Move note to trash
   Future<void> trashNote(String noteId) async {
+    if (!kIsWeb) {
+      await _localNotesService.trashNote(noteId);
+      _triggerBackgroundSync();
+      return;
+    }
     await updateNote(noteId, {'trashedAt': DateTime.now().toIso8601String()});
   }
 
   /// Restore note from trash
   Future<void> restoreNote(String noteId) async {
+    if (!kIsWeb) {
+      await _localNotesService.restoreNote(noteId);
+      _triggerBackgroundSync();
+      return;
+    }
+
     try {
       await _client
           .from('notes')
@@ -429,6 +489,12 @@ class NotesService {
 
   /// Empty trash (delete all trashed notes)
   Future<void> emptyTrash() async {
+    if (!kIsWeb) {
+      await _localNotesService.emptyTrash();
+      _triggerBackgroundSync();
+      return;
+    }
+
     try {
       await _client
           .from('notes')

@@ -17,7 +17,7 @@ if %errorlevel% neq 0 (
 echo ========================================
 echo   Deploying Marketing Site to Cloudflare...
 echo ========================================
-call npx wrangler pages deploy dist --project-name=inksync-marketing --commit-dirty=true
+call npx wrangler pages deploy dist --project-name=inksync-marketing --branch=production --commit-dirty=true
 if %errorlevel% neq 0 (
     echo ERROR: Deploy failed!
     pause

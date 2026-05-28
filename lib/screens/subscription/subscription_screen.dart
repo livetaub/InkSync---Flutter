@@ -10,7 +10,9 @@ import 'mobile_paywall_screen.dart';
 import '../checkout/android_checkout_screen.dart';
 
 class SubscriptionScreen extends StatefulWidget {
-  const SubscriptionScreen({super.key});
+  final bool isDialog;
+
+  const SubscriptionScreen({super.key, this.isDialog = false});
 
   @override
   State<SubscriptionScreen> createState() => _SubscriptionScreenState();
@@ -153,6 +155,147 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
+    final content = Column(
+      children: [
+        if (widget.isDialog)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+            child: Row(
+              children: [
+                const SizedBox(width: 48),
+                Expanded(
+                  child: Text(
+                    'Manage Subscription',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+        if (widget.isDialog) const Divider(height: 1),
+        Expanded(
+          child: _isLoading 
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  // Current Plan Card
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'CURRENT PLAN',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _currentPlan.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Icon(
+                              _status == 'active' || _status == 'Active' ? Icons.check_circle : Icons.info_outline,
+                              color: _status == 'active' || _status == 'Active' ? Colors.green : Colors.orange,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Status: $_status',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                        if (_periodEnd != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Renews / Expires on: ${DateTime.parse(_periodEnd!).toLocal().toString().split(' ')[0]}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  // Actions
+                  if (_currentPlan == 'Free' || _currentPlan.toLowerCase() == 'free')
+                    ElevatedButton.icon(
+                      onPressed: _handleUpgrade,
+                      icon: const Icon(Icons.star),
+                      label: const Text('Upgrade Plan'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _handleManageSubscription,
+                          icon: const Icon(Icons.receipt_long),
+                          label: const Text('View Billing History & Manage'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          onPressed: _handleManageSubscription, // Portal/Native handles cancellation
+                          icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                          label: const Text('Cancel Subscription', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+        ),
+      ],
+    );
+
+    if (widget.isDialog) {
+      return content;
+    }
+    
     return Scaffold(
       backgroundColor: isDark ? AppTheme.bgPrimaryDark : Colors.grey.shade50,
       appBar: AppBar(
@@ -160,111 +303,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              // Current Plan Card
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CURRENT PLAN',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _currentPlan.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Icon(
-                          _status == 'active' || _status == 'Active' ? Icons.check_circle : Icons.info_outline,
-                          color: _status == 'active' || _status == 'Active' ? Colors.green : Colors.orange,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Status: $_status',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ],
-                    ),
-                    if (_periodEnd != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Renews / Expires on: ${DateTime.parse(_periodEnd!).toLocal().toString().split(' ')[0]}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              
-              // Actions
-              if (_currentPlan == 'Free' || _currentPlan.toLowerCase() == 'free')
-                ElevatedButton.icon(
-                  onPressed: _handleUpgrade,
-                  icon: const Icon(Icons.star),
-                  label: const Text('Upgrade Plan'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _handleManageSubscription,
-                      icon: const Icon(Icons.receipt_long),
-                      label: const Text('View Billing History & Manage'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton.icon(
-                      onPressed: _handleManageSubscription, // Portal/Native handles cancellation
-                      icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                      label: const Text('Cancel Subscription', style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
-            ],
-          ),
+      body: content,
     );
   }
 }
