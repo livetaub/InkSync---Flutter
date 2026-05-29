@@ -12,6 +12,7 @@ import '../../widgets/invite_banner.dart';
 import '../note_edit/note_edit_screen.dart';
 import '../../providers/selection_provider.dart';
 import '../../utils/ui_helper.dart';
+import '../../services/local_database_service.dart';
 
 /// Modern HomeScreen with simplified header - menu in bottom nav
 class HomeScreen extends StatefulWidget {
@@ -79,6 +80,7 @@ class HomeScreenState extends State<HomeScreen> {
   String? _highlightedNoteId;
   bool _isLoading = true;
   bool _hasLoadedOnce = false;
+  bool _hasUnsyncedChanges = false;
 
   @override
   void initState() {
@@ -159,13 +161,21 @@ class HomeScreenState extends State<HomeScreen> {
         DebugService.instance.log('Error loading tags: $tagError');
       }
 
+      bool hasPending = false;
+      if (!kIsWeb) {
+        final pendingNotes = await LocalDatabaseService.instance.getPendingNotes();
+        final pendingTags = await LocalDatabaseService.instance.getPendingTags();
+        hasPending = pendingNotes.isNotEmpty || pendingTags.isNotEmpty;
+      }
+
       if (!mounted) return;
 
-      // On first load, always apply. On subsequent loads, only if data changed.
-      if (!_hasLoadedOnce || _hasNotesChanged(notes) || _hasTagsChanged(tags)) {
+      // On first load, always apply. On subsequent loads, only if data changed or sync state changed.
+      if (!_hasLoadedOnce || _hasNotesChanged(notes) || _hasTagsChanged(tags) || _hasUnsyncedChanges != hasPending) {
         setState(() {
           _notes = notes;
           _tags = tags;
+          _hasUnsyncedChanges = hasPending;
           _sortNotes();
           _isLoading = false;
           _hasLoadedOnce = true;
@@ -497,29 +507,29 @@ class HomeScreenState extends State<HomeScreen> {
           const Spacer(),
           // Sync Indicator
           if (!authService.isLoggedIn)
-            Row(
-              children: [
-                Icon(Icons.cloud_off_rounded, size: 16, color: isDark ? Colors.white54 : Colors.grey),
-                const SizedBox(width: 4),
-                Text('Local only', style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.grey, fontWeight: FontWeight.w500)),
-              ],
+            GestureDetector(
+              onTap: () {
+                // If they tap the offline indicator, we can route them to login
+                Navigator.pushNamed(context, '/login');
+              },
+              child: Row(
+                children: [
+                  Icon(Icons.cloud_off_rounded, size: 16, color: isDark ? Colors.white54 : Colors.grey),
+                  const SizedBox(width: 4),
+                  Text('Login to sync across your devices', style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.grey, fontWeight: FontWeight.w500)),
+                ],
+              ),
             )
           else if (widget.isSyncing)
-            Row(
-              children: [
-                const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryColor)),
-                const SizedBox(width: 6),
-                const Text('Syncing...', style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w500)),
-              ],
+            const SizedBox(
+              width: 14, 
+              height: 14, 
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryColor)
             )
+          else if (_hasUnsyncedChanges)
+            Icon(Icons.sync_problem_rounded, size: 18, color: isDark ? Colors.white54 : Colors.grey)
           else
-            Row(
-              children: [
-                const Icon(Icons.cloud_done_rounded, size: 16, color: Colors.green),
-                const SizedBox(width: 4),
-                const Text('Synced', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w500)),
-              ],
-            ),
+            const Icon(Icons.cloud_done_rounded, size: 18, color: Colors.green),
         ],
       ),
     );

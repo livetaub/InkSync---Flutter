@@ -306,7 +306,7 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                     _buildMenuItem(
                       context,
                       icon: Icons.login_rounded,
-                      title: 'Log in to sync across devices',
+                      title: 'Log In or Sign Up',
                       iconColor: AppTheme.primaryColor,
                       onTap: () async {
                         Navigator.pop(context);
