@@ -297,17 +297,25 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                       onTap: () async {
                         Navigator.pop(context);
                         await authService.signOut();
+                        if (context.mounted) {
+                          Navigator.pushNamedAndRemoveUntil(context, '/login', (r) => false);
+                        }
                       },
                     )
                   else
                     _buildMenuItem(
                       context,
                       icon: Icons.login_rounded,
-                      title: 'Log In or Sign Up',
+                      title: 'Log in to sync across devices',
                       iconColor: AppTheme.primaryColor,
-                      onTap: () {
+                      onTap: () async {
                         Navigator.pop(context);
-                        Navigator.pushReplacementNamed(context, '/login');
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.remove('has_seen_onboarding');
+                        await prefs.remove('is_guest_mode');
+                        if (context.mounted) {
+                          Navigator.pushNamedAndRemoveUntil(context, '/app', (r) => false);
+                        }
                       },
                     ),
                 ],

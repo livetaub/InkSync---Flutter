@@ -385,55 +385,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
       listen: false,
     );
 
-    // Mobile first-launch: show WelcomeScreen
-    if (!kIsWeb && _isCheckingGuest) {
-      return WelcomeScreen(
-        onLoginTap: _goToLogin,
-        onSignUpTap: _goToLogin,
-        onGoogleSignIn: () async {
-          await authService.signInWithGoogle();
-        },
-        onGuestContinue: _enterGuestMode,
-      );
-    }
-
-    // Mobile guest mode: skip auth, go straight to main
-    if (!kIsWeb && _isGuestMode) {
-      final session = Supabase.instance.client.auth.currentSession;
-      if (session != null) {
-        // User logged in after being a guest — exit guest mode
-        return const MainNavigation();
-      }
-      return const MainNavigation();
-    }
-
     return StreamBuilder<AuthState>(
       stream: authService.authStateChanges,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Loading...',
-                    style: TextStyle(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey
-                          : AppTheme.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        // Check if user is logged in
-        final session = snapshot.data?.session;
+        // Use currentSession for immediate synchronous state to avoid waiting delays
+        final session = Supabase.instance.client.auth.currentSession;
+        
         if (session != null) {
           // Web-only: Check for a pending plan from OAuth signup flow
           if (kIsWeb) {
@@ -456,6 +413,45 @@ class _AuthWrapperState extends State<AuthWrapper> {
           return const MainNavigation();
         }
 
+        // Show loading spinner only on Web when waiting. On mobile we show WelcomeScreen immediately.
+        if (snapshot.connectionState == ConnectionState.waiting && session == null && kIsWeb) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading...',
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey
+                          : AppTheme.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Mobile fallback logic
+        if (!kIsWeb) {
+          if (_isCheckingGuest) {
+            return WelcomeScreen(
+              onLoginTap: _goToLogin,
+              onSignUpTap: _goToLogin,
+              onGoogleSignIn: () async {
+                await authService.signInWithGoogle();
+              },
+              onGuestContinue: _enterGuestMode,
+            );
+          }
+          return const MainNavigation();
+        }
+
+        // Web fallback logic
         return const LoginScreen();
       },
     );
@@ -482,15 +478,18 @@ class _MainNavigationState extends State<MainNavigation> {
   final GlobalKey<HomeScreenState> _checklistsScreenKey =
       GlobalKey<HomeScreenState>();
 
-  // Store screens as late final to preserve their state
-  late final List<Widget> _screens = [
+  // Generate screens dynamically to pass the current _isSyncing state.
+  // The GlobalKeys ensure that the underlying State objects (and scroll positions) are preserved.
+  List<Widget> get _screens => [
     HomeScreen(
       key: _notesScreenKey,
       noteTypeFilter: 'text',
+      isSyncing: _isSyncing,
     ), // Notes only (index 0)
     HomeScreen(
       key: _checklistsScreenKey,
       noteTypeFilter: 'checklist',
+      isSyncing: _isSyncing,
     ), // Checklists only (index 1)
     const CalendarScreen(), // Calendar (index 2)
     const TrashScreen(), // Trash (index 3)

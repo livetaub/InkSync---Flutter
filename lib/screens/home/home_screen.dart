@@ -16,8 +16,9 @@ import '../../utils/ui_helper.dart';
 /// Modern HomeScreen with simplified header - menu in bottom nav
 class HomeScreen extends StatefulWidget {
   final String? noteTypeFilter; // 'text', 'checklist', or null for all
+  final bool isSyncing;
 
-  const HomeScreen({super.key, this.noteTypeFilter});
+  const HomeScreen({super.key, this.noteTypeFilter, this.isSyncing = false});
 
   @override
   HomeScreenState createState() => HomeScreenState();
@@ -454,6 +455,7 @@ class HomeScreenState extends State<HomeScreen> {
     final headerTitle = widget.noteTypeFilter == 'checklist'
         ? 'Checklists'
         : 'Notes';
+    final authService = Provider.of<AuthService>(context, listen: false);
 
     // Build header with InkSync branding + section name
     return Container(
@@ -492,6 +494,32 @@ class HomeScreenState extends State<HomeScreen> {
               letterSpacing: -0.3,
             ),
           ),
+          const Spacer(),
+          // Sync Indicator
+          if (!authService.isLoggedIn)
+            Row(
+              children: [
+                Icon(Icons.cloud_off_rounded, size: 16, color: isDark ? Colors.white54 : Colors.grey),
+                const SizedBox(width: 4),
+                Text('Local only', style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.grey, fontWeight: FontWeight.w500)),
+              ],
+            )
+          else if (widget.isSyncing)
+            Row(
+              children: [
+                const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryColor)),
+                const SizedBox(width: 6),
+                const Text('Syncing...', style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w500)),
+              ],
+            )
+          else
+            Row(
+              children: [
+                const Icon(Icons.cloud_done_rounded, size: 16, color: Colors.green),
+                const SizedBox(width: 4),
+                const Text('Synced', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w500)),
+              ],
+            ),
         ],
       ),
     );

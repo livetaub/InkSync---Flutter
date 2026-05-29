@@ -314,7 +314,12 @@ class _WebSidebarState extends State<WebSidebar> {
           Icons.logout_rounded,
           'Sign Out ($userEmail)',
           Colors.redAccent,
-          () async => await authService.signOut(),
+          () async {
+            await authService.signOut();
+            if (context.mounted) {
+              Navigator.pushNamedAndRemoveUntil(context, '/login', (r) => false);
+            }
+          },
         ),
       ],
     );
