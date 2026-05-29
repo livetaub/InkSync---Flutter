@@ -113,6 +113,9 @@ class InkSyncApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
             debugShowCheckedModeBanner: false,
+            // Mobile app always starts at AuthWrapper (/app) which handles
+            // WelcomeScreen / guest mode. Web starts at / (LoginScreen).
+            initialRoute: kIsWeb ? '/' : '/app',
             builder: (context, child) {
               // Wrap all pages with debug panel
               return DebugWrapper(child: child ?? const SizedBox.shrink());
