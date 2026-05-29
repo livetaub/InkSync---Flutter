@@ -1,17 +1,11 @@
-name: Build Android App
+name: Build Android App Bundle (AAB)
 
 on:
   workflow_dispatch: # Allows you to manually trigger a build from the GitHub UI
-  push:
-    branches:
-      - main
-      - master
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Only run if triggered manually OR if the commit message contains '[build]'
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build]')
 
     steps:
       - name: Checkout repository
@@ -31,11 +25,11 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build App Bundle (AAB)
+        run: flutter build appbundle --release
 
-      - name: Upload APK
+      - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: inksync-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: inksync-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
