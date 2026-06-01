@@ -1,7 +1,16 @@
 @echo off
+setlocal enabledelayedexpansion
+REM Load environment variables from .env file
+if exist "%~dp0.env" (
+    for /f "usebackq tokens=1,2 delims==" %%a in ("%~dp0.env") do (
+        set "line=%%a"
+        if not "!line:~0,1!"=="#" if not "%%a"=="" set "%%a=%%b"
+    )
+)
+
 if "%CLOUDFLARE_API_TOKEN%"=="" (
-    echo ERROR: CLOUDFLARE_API_TOKEN environment variable is not set.
-    echo Set it with: set CLOUDFLARE_API_TOKEN=your_token_here
+    echo ERROR: CLOUDFLARE_API_TOKEN not found.
+    echo Create a .env file from .env.example: copy .env.example .env
     pause
     exit /b 1
 )

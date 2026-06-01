@@ -44,8 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Deploy scripts with secrets
-*.bat
+# Deploy scripts (safe to commit — secrets are in .env)
 
 # Debug/temp files
 check_braces*.dart
