@@ -14,7 +14,10 @@ class AppConfig {
       '1:864468840662:web:976da670d200f7b6929977';
 
   // Gemini API Configuration
-  static const String geminiApiKey = 'AIzaSyCQaZMUG85CAbsQdPhZuay8B7Bq8o8xChk';
+  static const String geminiApiKey = String.fromEnvironment(
+    'GEMINI_API_KEY',
+    defaultValue: '',
+  );
   static const String geminiApiUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 

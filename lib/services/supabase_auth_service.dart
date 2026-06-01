@@ -1,6 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'debug_service.dart';
+import 'package:flutter/foundation.dart';
 
 /// Supabase Authentication Service
 /// Replaces Firebase Auth with same interface for easy migration
@@ -39,12 +38,10 @@ class SupabaseAuthService {
         email: email,
         password: password,
       );
-      DebugService.instance.log('[INFO] Email sign-in successful: $email');
+      debugPrint('[INFO] Email sign-in successful: $email');
       return response;
     } catch (e, stack) {
-      DebugService.instance.log(
-        '[ERROR] Email sign-in failed: $e\nStack: $stack',
-      );
+      debugPrint('[ERROR] Email sign-in failed: $e\nStack: $stack');
       rethrow;
     }
   }
@@ -56,10 +53,10 @@ class SupabaseAuthService {
         email: email,
         password: password,
       );
-      DebugService.instance.log('[INFO] Sign-up successful: $email');
+      debugPrint('[INFO] Sign-up successful: $email');
       return response;
     } catch (e, stack) {
-      DebugService.instance.log('[ERROR] Sign-up failed: $e\nStack: $stack');
+      debugPrint('[ERROR] Sign-up failed: $e\nStack: $stack');
       rethrow;
     }
   }
@@ -67,9 +64,7 @@ class SupabaseAuthService {
   /// Sign in with Google
   Future<AuthResponse?> signInWithGoogle() async {
     try {
-      DebugService.instance.log(
-        '[INFO] Starting Google sign-in (web: $kIsWeb)',
-      );
+      debugPrint('[INFO] Starting Google sign-in (web: $kIsWeb)');
 
       if (kIsWeb) {
         // For web, use OAuth redirect with explicit callback URL
@@ -87,13 +82,11 @@ class SupabaseAuthService {
           OAuthProvider.google,
           redirectTo: 'io.supabase.inksync://login-callback/',
         );
-        DebugService.instance.log('[INFO] Google sign-in initiated');
+        debugPrint('[INFO] Google sign-in initiated');
         return null; // OAuth redirects, so no immediate response
       }
     } catch (e, stack) {
-      DebugService.instance.log(
-        '[ERROR] Google sign-in failed: $e\nStack: $stack',
-      );
+      debugPrint('[ERROR] Google sign-in failed: $e\nStack: $stack');
       rethrow;
     }
   }
@@ -102,9 +95,9 @@ class SupabaseAuthService {
   Future<void> signOut() async {
     try {
       await _client.auth.signOut();
-      DebugService.instance.log('[INFO] User signed out');
+      debugPrint('[INFO] User signed out');
     } catch (e, stack) {
-      DebugService.instance.log('[ERROR] Sign-out failed: $e\nStack: $stack');
+      debugPrint('[ERROR] Sign-out failed: $e\nStack: $stack');
       rethrow;
     }
   }
@@ -113,11 +106,9 @@ class SupabaseAuthService {
   Future<void> resetPassword(String email) async {
     try {
       await _client.auth.resetPasswordForEmail(email);
-      DebugService.instance.log('[INFO] Password reset email sent to: $email');
+      debugPrint('[INFO] Password reset email sent to: $email');
     } catch (e, stack) {
-      DebugService.instance.log(
-        '[ERROR] Password reset failed: $e\nStack: $stack',
-      );
+      debugPrint('[ERROR] Password reset failed: $e\nStack: $stack');
       rethrow;
     }
   }
@@ -145,11 +136,9 @@ class SupabaseAuthService {
           },
         ),
       );
-      DebugService.instance.log('[INFO] Profile updated');
+      debugPrint('[INFO] Profile updated');
     } catch (e, stack) {
-      DebugService.instance.log(
-        '[ERROR] Profile update failed: $e\nStack: $stack',
-      );
+      debugPrint('[ERROR] Profile update failed: $e\nStack: $stack');
       rethrow;
     }
   }

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:provider/provider.dart';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/subscription_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../utils/platform_helper.dart' as platform;
 import '../../config/theme.dart';
 import 'mobile_paywall_screen.dart';
-import '../checkout/android_checkout_screen.dart';
+
 
 class SubscriptionScreen extends StatefulWidget {
   final bool isDialog;

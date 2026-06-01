@@ -40,6 +40,16 @@ class _PricingScreenState extends State<PricingScreen> {
     _fetchPricing();
   }
 
+  @override
+  void dispose() {
+    for (final planControllers in _controllers.values) {
+      for (final controller in planControllers.values) {
+        controller.dispose();
+      }
+    }
+    super.dispose();
+  }
+
   Future<void> _fetchPricing() async {
     setState(() => _isLoading = true);
     try {
@@ -65,13 +75,43 @@ class _PricingScreenState extends State<PricingScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error fetching pricing: $e');
+      debugPrint('[PricingScreen] Error fetching pricing: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  bool _validateInputs() {
+    for (final planEntry in _controllers.entries) {
+      for (final fieldEntry in planEntry.value.entries) {
+        final text = fieldEntry.value.text.trim();
+        if (text.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${fieldEntry.key} for ${planEntry.key} cannot be empty.'), backgroundColor: Colors.orange),
+          );
+          return false;
+        }
+        final numValue = num.tryParse(text);
+        if (numValue == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${fieldEntry.key} for ${planEntry.key} must be a valid number.'), backgroundColor: Colors.orange),
+          );
+          return false;
+        }
+        if (numValue < 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${fieldEntry.key} for ${planEntry.key} cannot be negative.'), backgroundColor: Colors.orange),
+          );
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   Future<void> _savePricing() async {
+    if (!_validateInputs()) return;
+
     setState(() => _isSaving = true);
     try {
       final updates = [
@@ -97,10 +137,12 @@ class _PricingScreenState extends State<PricingScreen> {
       ];
 
       for (var update in updates) {
+        final updateData = Map<String, dynamic>.from(update);
+        final planId = updateData.remove('plan_id');
         await Supabase.instance.client
             .from('global_pricing')
-            .update(update)
-            .eq('plan_id', update['plan_id'] as String);
+            .update(updateData)
+            .eq('plan_id', planId as String);
       }
 
       if (mounted) {
@@ -110,10 +152,10 @@ class _PricingScreenState extends State<PricingScreen> {
         );
       }
     } catch (e) {
-      debugPrint('Error saving pricing: $e');
+      debugPrint('[PricingScreen] Error saving pricing: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving: $e'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('An error occurred while saving pricing. Please try again.'), backgroundColor: Colors.red),
         );
       }
     } finally {

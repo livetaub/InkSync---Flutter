@@ -12,7 +12,6 @@ import '../../services/auth_service.dart';
 import '../../services/calendar_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/tag_service.dart';
-import '../../services/debug_service.dart';
 import '../../config/theme.dart';
 import '../subscription/mobile_paywall_screen.dart';
 import '../../providers/selection_provider.dart';
@@ -209,7 +208,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
         }
       }
     } catch (e) {
-      DebugService.instance.log('Error syncing collaborator statuses: $e');
+      debugPrint('Error syncing collaborator statuses: $e');
     }
   }
 
@@ -1553,7 +1552,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                                                     }
                                                   } catch (inviteError) {
                                                     // Invite failed but user was still added
-                                                    DebugService.instance.log(
+                                                    debugPrint(
                                                       '[ERROR] INVITE: $inviteError',
                                                     );
                                                     if (mounted) {

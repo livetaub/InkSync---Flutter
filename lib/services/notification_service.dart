@@ -19,6 +19,17 @@ class NotificationService {
   /// Callback for when a notification is tapped
   static void Function(String noteId)? onNotificationTapped;
 
+  /// Generate a deterministic notification ID using FNV-1a hash.
+  /// Better distribution than String.hashCode to avoid ID collisions.
+  static int _generateNotificationId(String noteId) {
+    int hash = 0x811c9dc5;
+    for (int i = 0; i < noteId.length; i++) {
+      hash ^= noteId.codeUnitAt(i);
+      hash = (hash * 0x01000193) & 0x7FFFFFFF;
+    }
+    return hash;
+  }
+
   /// Initialize the notification system
   Future<void> init() async {
     if (kIsWeb) return; // Notifications are mobile-only
@@ -114,8 +125,8 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    // Use note ID's hashCode as notification ID (stable across sessions)
-    final notificationId = noteId.hashCode.abs() % 2147483647;
+    // Use FNV-1a hash for stable, collision-resistant notification IDs
+    final notificationId = _generateNotificationId(noteId);
 
     await _plugin.show(
       notificationId,
@@ -132,7 +143,7 @@ class NotificationService {
   Future<void> unpinNote(String noteId) async {
     if (kIsWeb) return;
 
-    final notificationId = noteId.hashCode.abs() % 2147483647;
+    final notificationId = _generateNotificationId(noteId);
     await _plugin.cancel(notificationId);
     debugPrint('NotificationService: Unpinned note $noteId');
   }
@@ -142,7 +153,7 @@ class NotificationService {
     if (kIsWeb) return false;
 
     final active = await _plugin.getActiveNotifications();
-    final notificationId = noteId.hashCode.abs() % 2147483647;
+    final notificationId = _generateNotificationId(noteId);
     return active.any((n) => n.id == notificationId);
   }
 

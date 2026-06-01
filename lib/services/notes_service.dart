@@ -1,7 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
-import 'debug_service.dart';
 import 'local_database_service.dart';
 import 'local_notes_service.dart';
 import 'sync_engine.dart';
@@ -281,7 +280,7 @@ class NotesService {
   void _triggerBackgroundSync() {
     if (!kIsWeb && _userId.isNotEmpty) {
       SyncEngine(LocalDatabaseService.instance, _auth).sync().catchError((e) {
-        DebugService.instance.log('Background sync error: $e');
+        debugPrint('Background sync error: $e');
       });
     }
   }
@@ -305,7 +304,7 @@ class NotesService {
 
       return (response as List).map((row) => Note.fromSupabase(row)).toList();
     } catch (e) {
-      DebugService.instance.log('Error getting notes: $e');
+      debugPrint('Error getting notes: $e');
       return [];
     }
   }
@@ -345,7 +344,7 @@ class NotesService {
 
       return ownNotes;
     } catch (e) {
-      DebugService.instance.log('Error getting active notes: $e');
+      debugPrint('Error getting active notes: $e');
       return [];
     }
   }
@@ -367,7 +366,7 @@ class NotesService {
 
       return (response as List).map((row) => Note.fromSupabase(row)).toList();
     } catch (e) {
-      DebugService.instance.log('Error getting trashed notes: $e');
+      debugPrint('Error getting trashed notes: $e');
       return [];
     }
   }
@@ -386,7 +385,7 @@ class NotesService {
           .single();
       return Note.fromSupabase(response);
     } catch (e) {
-      DebugService.instance.log('Error getting note: $e');
+      debugPrint('Error getting note: $e');
       return null;
     }
   }
@@ -413,8 +412,8 @@ class NotesService {
 
       return Note.fromSupabase(response);
     } catch (e) {
-      DebugService.instance.log('Error creating note: $e');
-      return null;
+      debugPrint('Error creating note: $e');
+      rethrow;
     }
   }
 
@@ -437,7 +436,8 @@ class NotesService {
 
       await _client.from('notes').update(supabaseUpdates).eq('id', noteId);
     } catch (e) {
-      DebugService.instance.log('Error updating note: $e');
+      debugPrint('Error updating note: $e');
+      rethrow;
     }
   }
 
@@ -452,7 +452,8 @@ class NotesService {
     try {
       await _client.from('notes').delete().eq('id', noteId);
     } catch (e) {
-      DebugService.instance.log('Error deleting note: $e');
+      debugPrint('Error deleting note: $e');
+      rethrow;
     }
   }
 
@@ -483,7 +484,8 @@ class NotesService {
           })
           .eq('id', noteId);
     } catch (e) {
-      DebugService.instance.log('Error restoring note: $e');
+      debugPrint('Error restoring note: $e');
+      rethrow;
     }
   }
 
@@ -502,7 +504,8 @@ class NotesService {
           .eq('user_id', _userId)
           .not('trashed_at', 'is', null);
     } catch (e) {
-      DebugService.instance.log('Error emptying trash: $e');
+      debugPrint('Error emptying trash: $e');
+      rethrow;
     }
   }
 
@@ -520,7 +523,7 @@ class NotesService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      DebugService.instance.log('Error getting pending invites: $e');
+      debugPrint('Error getting pending invites: $e');
       return [];
     }
   }
@@ -535,7 +538,8 @@ class NotesService {
           })
           .eq('id', inviteId);
     } catch (e) {
-      DebugService.instance.log('Error accepting invite: $e');
+      debugPrint('Error accepting invite: $e');
+      rethrow;
     }
   }
 
@@ -549,7 +553,8 @@ class NotesService {
           })
           .eq('id', inviteId);
     } catch (e) {
-      DebugService.instance.log('Error rejecting invite: $e');
+      debugPrint('Error rejecting invite: $e');
+      rethrow;
     }
   }
 
@@ -564,7 +569,8 @@ class NotesService {
           .eq('note_id', noteId)
           .eq('to_email', _userEmail.toLowerCase());
     } catch (e) {
-      DebugService.instance.log('Error leaving note: $e');
+      debugPrint('Error leaving note: $e');
+      rethrow;
     }
   }
 
@@ -578,7 +584,7 @@ class NotesService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      DebugService.instance.log('Error getting archived invites: $e');
+      debugPrint('Error getting archived invites: $e');
       return [];
     }
   }
@@ -606,7 +612,7 @@ class NotesService {
 
       return (response as List).map((row) => Note.fromSupabase(row)).toList();
     } catch (e) {
-      DebugService.instance.log('Error getting shared notes: $e');
+      debugPrint('Error getting shared notes: $e');
       return [];
     }
   }
@@ -623,7 +629,7 @@ class NotesService {
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      DebugService.instance.log('Error getting invite statuses: $e');
+      debugPrint('Error getting invite statuses: $e');
       return [];
     }
   }
@@ -646,7 +652,7 @@ class NotesService {
   /// Create a share token for a note
   Future<String?> createShareToken(String noteId) async {
     // TODO: Implement proper sharing via shared_notes table
-    DebugService.instance.log('Share token creation not yet implemented');
+    debugPrint('Share token creation not yet implemented');
     return null;
   }
 
@@ -683,7 +689,7 @@ class NotesService {
         return existing['token'] as String;
       }
     } catch (e) {
-      DebugService.instance.log('Error checking existing snapshot: $e');
+      debugPrint('Error checking existing snapshot: $e');
     }
 
     // Create new snapshot
@@ -716,7 +722,7 @@ class NotesService {
 
       return response;
     } catch (e) {
-      DebugService.instance.log('Error fetching snapshot: $e');
+      debugPrint('Error fetching snapshot: $e');
       return null;
     }
   }
@@ -745,7 +751,7 @@ class NotesService {
 
       return await createNote(note);
     } catch (e) {
-      DebugService.instance.log('Error importing from snapshot: $e');
+      debugPrint('Error importing from snapshot: $e');
       return null;
     }
   }
@@ -765,7 +771,7 @@ class NotesService {
   /// Claim a shared note by token
   Future<void> claimSharedNote(String shareToken) async {
     // TODO: Implement proper note claiming from shared_notes table
-    DebugService.instance.log('Shared note claiming not yet implemented');
+    debugPrint('Shared note claiming not yet implemented');
   }
 
   /// Send collaboration invite
@@ -787,7 +793,7 @@ class NotesService {
       }, onConflict: 'note_id, to_email');
       // Email is sent automatically by the database trigger
     } catch (e) {
-      DebugService.instance.log('Error sending invite: $e');
+      debugPrint('Error sending invite: $e');
       rethrow;
     }
   }
@@ -801,7 +807,8 @@ class NotesService {
           .eq('note_id', noteId)
           .eq('to_email', email.toLowerCase());
     } catch (e) {
-      DebugService.instance.log('Error updating permission: $e');
+      debugPrint('Error updating permission: $e');
+      rethrow;
     }
   }
 
@@ -817,7 +824,8 @@ class NotesService {
           .eq('note_id', noteId)
           .eq('to_email', email.toLowerCase());
     } catch (e) {
-      DebugService.instance.log('Error revoking invite: $e');
+      debugPrint('Error revoking invite: $e');
+      rethrow;
     }
   }
 }

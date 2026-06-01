@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/notes_service.dart';
 import '../../services/tag_service.dart';
-import '../../services/debug_service.dart';
 import '../../providers/settings_provider.dart';
 import '../../config/theme.dart';
 import '../../widgets/note_card.dart';
@@ -159,7 +158,7 @@ class HomeScreenState extends State<HomeScreen> {
           tags = await tagService.getTags();
         }
       } catch (tagError) {
-        DebugService.instance.log('Error loading tags: $tagError');
+        debugPrint('Error loading tags: $tagError');
       }
 
       bool hasPending = false;
@@ -183,7 +182,7 @@ class HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e, stackTrace) {
-      DebugService.instance.log('Error loading data: $e\n$stackTrace');
+      debugPrint('Error loading data: $e\n$stackTrace');
       if (!_hasLoadedOnce) {
         setState(() => _isLoading = false);
       }
@@ -200,7 +199,7 @@ class HomeScreenState extends State<HomeScreen> {
       final invites = await notesService.getPendingInvites();
       setState(() => _pendingInvites = invites);
     } catch (e) {
-      DebugService.instance.log('Error loading invites: $e');
+      debugPrint('Error loading invites: $e');
     }
   }
 
@@ -275,13 +274,13 @@ class HomeScreenState extends State<HomeScreen> {
 
     // Filter by tag if selected
     if (_selectedTagName != null) {
-      DebugService.instance.log('Filtering by tag: $_selectedTagName');
-      DebugService.instance.log('Notes before filter: ${notes.length}');
+      debugPrint('Filtering by tag: $_selectedTagName');
+      debugPrint('Notes before filter: ${notes.length}');
       for (var n in notes) {
-        DebugService.instance.log('Note "${n.title}" tags: ${n.tags}');
+        debugPrint('Note "${n.title}" tags: ${n.tags}');
       }
       notes = notes.where((n) => n.tags.map((t) => t.toLowerCase()).contains(_selectedTagName!.toLowerCase())).toList();
-      DebugService.instance.log('Notes after filter: ${notes.length}');
+      debugPrint('Notes after filter: ${notes.length}');
     }
 
     return notes;

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 
@@ -25,7 +24,7 @@ Future<void> main() async {
 
 final _router = GoRouter(
   initialLocation: '/login',
-  redirect: (context, state) {
+  redirect: (context, state) async {
     final session = Supabase.instance.client.auth.currentSession;
     final isGoingToLogin = state.matchedLocation == '/login';
 
@@ -33,6 +32,21 @@ final _router = GoRouter(
       return '/login';
     }
     if (session != null && isGoingToLogin) {
+      // Verify user is an admin before allowing access
+      try {
+        final adminCheck = await Supabase.instance.client
+            .from('admin_users')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+        if (adminCheck == null) {
+          await Supabase.instance.client.auth.signOut();
+          return '/login';
+        }
+      } catch (_) {
+        await Supabase.instance.client.auth.signOut();
+        return '/login';
+      }
       return '/dashboard';
     }
     return null;

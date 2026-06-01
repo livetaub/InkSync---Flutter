@@ -6,12 +6,11 @@ import '../screens/help/help_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/invites/pending_invites_screen.dart';
 import '../services/auth_service.dart';
-import '../services/settings_service.dart';
+
 import '../screens/subscription/subscription_screen.dart';
 import '../utils/ui_helper.dart';
+import 'package:provider/provider.dart';
 
-
-final authService = AuthService();
 
 class WebSidebar extends StatefulWidget {
   final int currentIndex;
@@ -47,6 +46,13 @@ class _WebSidebarState extends State<WebSidebar> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _isMenuExpanded = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -227,6 +233,7 @@ class _WebSidebarState extends State<WebSidebar> {
 
 
   Widget _buildExpandedMenu() {
+    final authService = Provider.of<AuthService>(context, listen: false);
     final userEmail = authService.currentUserEmail ?? 'User';
     return Column(
       children: [
@@ -503,7 +510,7 @@ class _WebSidebarState extends State<WebSidebar> {
   }) {
     // "More" should never be highlighted, only regular nav items
     final isSelected = !isMenu && widget.currentIndex == index;
-    const selectedColor = Color(0xFF3B82F6); // Blue color for selection
+    const selectedColor = AppTheme.selectionBlue; // Blue color for selection
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),

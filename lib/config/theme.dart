@@ -7,6 +7,7 @@ class AppTheme {
   static const Color primaryLight = Color(0xFF07E78C);
   static const Color primarySubtle = Color(0x1405D07D); // 8% opacity
   static const Color inkBlue = Color(0xFF1E88E5); // Vibrant Blue for accents
+  static const Color selectionBlue = Color(0xFF3B82F6); // Blue for sidebar selection
 
   // Neutral Colors - Light Mode
   static const Color bgPrimary = Color(0xFFF5F7F9); // Very light grey/white

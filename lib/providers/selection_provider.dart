@@ -25,8 +25,8 @@ class SelectionProvider with ChangeNotifier {
 
   void setScreenIndex(int index) {
     _currentScreenIndex = index;
-    // Clear selected note when switching screens if needed
-    if (index != 0) _selectedNote = null;
+    // Clear selected note when switching screens
+    _selectedNote = null;
     notifyListeners();
   }
   

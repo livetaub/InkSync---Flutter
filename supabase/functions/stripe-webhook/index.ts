@@ -11,12 +11,12 @@
 //   STRIPE_SECRET_KEY       = sk_test_... or sk_live_...
 //   STRIPE_WEBHOOK_SECRET   = whsec_...
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2024-06-20",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
@@ -34,13 +34,22 @@ serve(async (req: Request) => {
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
 
     // Verify the webhook signature (security: prevents spoofed requests)
-    const event = await stripe.webhooks.constructEventAsync(
-      body,
-      signature,
-      webhookSecret,
-      undefined,
-      cryptoProvider
-    );
+    let event: Stripe.Event;
+    try {
+      event = await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        webhookSecret,
+        undefined,
+        cryptoProvider
+      );
+    } catch (sigErr) {
+      console.error("Webhook signature verification failed:", sigErr);
+      return new Response(JSON.stringify({ error: "Invalid signature" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     // Initialize Supabase with service role (bypasses RLS)
     const supabase = createClient(
@@ -221,7 +230,7 @@ serve(async (req: Request) => {
   } catch (err) {
     console.error("Webhook error:", err);
     return new Response(JSON.stringify({ error: err.message }), {
-      status: 400,
+      status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }

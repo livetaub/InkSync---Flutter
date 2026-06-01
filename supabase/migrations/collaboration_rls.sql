@@ -5,6 +5,7 @@
 -- ============================================================
 
 -- Allow collaborators to SELECT notes shared with them
+DROP POLICY IF EXISTS "Collaborators can view shared notes" ON notes;
 CREATE POLICY "Collaborators can view shared notes"
 ON notes FOR SELECT
 USING (
@@ -16,6 +17,7 @@ USING (
 );
 
 -- Allow collaborators with edit access to UPDATE shared notes
+DROP POLICY IF EXISTS "Collaborators can update shared notes" ON notes;
 CREATE POLICY "Collaborators can update shared notes"
 ON notes FOR UPDATE
 USING (

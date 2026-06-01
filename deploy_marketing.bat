@@ -1,6 +1,10 @@
 @echo off
-set CLOUDFLARE_API_TOKEN=pfCc3cr0JV4X6O22nmePelHEGqAcM7rU39LYxnZo
-set NODE_TLS_REJECT_UNAUTHORIZED=0
+if "%CLOUDFLARE_API_TOKEN%"=="" (
+    echo ERROR: CLOUDFLARE_API_TOKEN environment variable is not set.
+    echo Set it with: set CLOUDFLARE_API_TOKEN=your_token_here
+    pause
+    exit /b 1
+)
 
 cd marketing
 

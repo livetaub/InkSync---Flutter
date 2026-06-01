@@ -21,13 +21,21 @@ class _UsersScreenState extends State<UsersScreen> {
   final ScrollController _verticalScrollController = ScrollController();
   
   // Sorting state
-  int _sortColumnIndex = 0;
+  int _sortColumnIndex = 1;
+  int _sortDataIndex = 0;
   bool _isSortAscending = false;
 
   @override
   void initState() {
     super.initState();
     _fetchUsers();
+  }
+
+  @override
+  void dispose() {
+    _horizontalScrollController.dispose();
+    _verticalScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchUsers() async {
@@ -46,7 +54,7 @@ class _UsersScreenState extends State<UsersScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error fetching users: $e');
+      debugPrint('[UsersScreen] Error fetching users: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -69,7 +77,7 @@ class _UsersScreenState extends State<UsersScreen> {
       dynamic valA;
       dynamic valB;
 
-      switch (_sortColumnIndex) {
+      switch (_sortDataIndex) {
         case 0: // ID
           valA = a['id']; valB = b['id']; break;
         case 1: // Email
@@ -118,6 +126,7 @@ class _UsersScreenState extends State<UsersScreen> {
   void _onSort(int columnIndex, bool ascending) {
     setState(() {
       _sortColumnIndex = columnIndex;
+      _sortDataIndex = columnIndex - 1; // Offset for Actions column at index 0
       _isSortAscending = ascending;
       _applyFiltersAndSort();
     });
@@ -158,7 +167,8 @@ class _UsersScreenState extends State<UsersScreen> {
         _fetchUsers();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      debugPrint('[UsersScreen] Error granting free pro: $e');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('An error occurred. Please try again.'), backgroundColor: Colors.red));
     }
   }
 
@@ -166,61 +176,67 @@ class _UsersScreenState extends State<UsersScreen> {
     final monthlyCtrl = TextEditingController(text: (user['locked_monthly_price'] ?? 0).toString());
     final yearlyCtrl = TextEditingController(text: (user['locked_yearly_price'] ?? 0).toString());
     String selectedPlan = user['account_type'] ?? 'free';
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Custom Pricing for ${user['email']}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<String>(
-              value: selectedPlan,
-              decoration: const InputDecoration(labelText: 'Account Type', border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: 'free', child: Text('Free')),
-                DropdownMenuItem(value: 'premium', child: Text('Premium')),
-                DropdownMenuItem(value: 'premium_pro', child: Text('Premium Pro')),
-              ],
-              onChanged: (val) => selectedPlan = val ?? 'free',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: monthlyCtrl,
-              decoration: const InputDecoration(labelText: 'Locked Monthly Price (\$)', border: OutlineInputBorder()),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: yearlyCtrl,
-              decoration: const InputDecoration(labelText: 'Locked Yearly Price (\$)', border: OutlineInputBorder()),
-              keyboardType: TextInputType.number,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Custom Pricing for ${user['email']}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: selectedPlan,
+                decoration: const InputDecoration(labelText: 'Account Type', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'free', child: Text('Free')),
+                  DropdownMenuItem(value: 'premium', child: Text('Premium')),
+                  DropdownMenuItem(value: 'premium_pro', child: Text('Premium Pro')),
+                ],
+                onChanged: (val) {
+                  setDialogState(() => selectedPlan = val ?? 'free');
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: monthlyCtrl,
+                decoration: const InputDecoration(labelText: 'Locked Monthly Price (\$)', border: OutlineInputBorder()),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: yearlyCtrl,
+                decoration: const InputDecoration(labelText: 'Locked Yearly Price (\$)', border: OutlineInputBorder()),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await Supabase.instance.client.from('profiles').update({
+                    'account_type': selectedPlan,
+                    'locked_monthly_price': double.tryParse(monthlyCtrl.text) ?? 0.0,
+                    'locked_yearly_price': double.tryParse(yearlyCtrl.text) ?? 0.0,
+                  }).eq('id', user['id']);
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Custom Pricing Saved!'), backgroundColor: Colors.green));
+                    _fetchUsers();
+                  }
+                } catch (e) {
+                  debugPrint('[UsersScreen] Error saving custom pricing: $e');
+                  scaffoldMessenger.showSnackBar(const SnackBar(content: Text('An error occurred. Please try again.'), backgroundColor: Colors.red));
+                }
+              },
+              child: const Text('Save Custom Pricing'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await Supabase.instance.client.from('profiles').update({
-                  'account_type': selectedPlan,
-                  'locked_monthly_price': double.tryParse(monthlyCtrl.text) ?? 0.0,
-                  'locked_yearly_price': double.tryParse(yearlyCtrl.text) ?? 0.0,
-                }).eq('id', user['id']);
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Custom Pricing Saved!'), backgroundColor: Colors.green));
-                  _fetchUsers();
-                }
-              } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-              }
-            },
-            child: const Text('Save Custom Pricing'),
-          ),
-        ],
-      )
+      ),
     );
   }
 
@@ -296,18 +312,18 @@ class _UsersScreenState extends State<UsersScreen> {
                                     DataColumn(label: const Text('Actions')),
                                     DataColumn(label: const Text('UUID (Short)'), onSort: _onSort),
                                     DataColumn(label: const Text('Email'), onSort: _onSort),
-                                  DataColumn(label: const Text('Status'), onSort: _onSort),
-                                  DataColumn(label: const Text('Plan'), onSort: _onSort),
-                                  DataColumn(label: const Text('Cycle'), onSort: _onSort),
-                                  DataColumn(label: const Text('LTV'), numeric: true, onSort: _onSort),
-                                  DataColumn(label: const Text('Lock M. (\$)'), numeric: true, onSort: _onSort),
-                                  DataColumn(label: const Text('Lock Y. (\$)'), numeric: true, onSort: _onSort),
-                                  DataColumn(label: const Text('AI Used'), numeric: true, onSort: _onSort),
-                                  DataColumn(label: const Text('Notes'), numeric: true, onSort: _onSort),
-                                  DataColumn(label: const Text('Storage'), numeric: true, onSort: _onSort),
-                                  DataColumn(label: const Text('Last Active'), onSort: _onSort),
-                                  DataColumn(label: const Text('Created At'), onSort: _onSort),
-                                ],
+                                    DataColumn(label: const Text('Status'), onSort: _onSort),
+                                    DataColumn(label: const Text('Plan'), onSort: _onSort),
+                                    DataColumn(label: const Text('Cycle'), onSort: _onSort),
+                                    DataColumn(label: const Text('LTV'), numeric: true, onSort: _onSort),
+                                    DataColumn(label: const Text('Lock M. (\$)'), numeric: true, onSort: _onSort),
+                                    DataColumn(label: const Text('Lock Y. (\$)'), numeric: true, onSort: _onSort),
+                                    DataColumn(label: const Text('AI Used'), numeric: true, onSort: _onSort),
+                                    DataColumn(label: const Text('Notes'), numeric: true, onSort: _onSort),
+                                    DataColumn(label: const Text('Storage'), numeric: true, onSort: _onSort),
+                                    DataColumn(label: const Text('Last Active'), onSort: _onSort),
+                                    DataColumn(label: const Text('Created At'), onSort: _onSort),
+                                  ],
                                 rows: _filteredUsers.map((user) {
                                   final shortId = (user['id'] ?? '').toString().split('-').first;
                                   return DataRow(cells: [

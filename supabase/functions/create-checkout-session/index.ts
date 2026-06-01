@@ -12,36 +12,37 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://app.inksyncnote.com',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
   apiVersion: '2024-06-20',
 })
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
 
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    })
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Authenticate the user
+    // Authenticate the user using anon key + user's auth token
     const authHeader = req.headers.get('Authorization')!
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -50,8 +51,11 @@ serve(async (req) => {
     // Construct the pricing_config key (e.g., 'premium_monthly')
     const planKey = `${plan}_${period}`
 
+    // Use service role for admin operations (pricing lookup, profile updates)
+    const adminSupabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+
     // Look up the Stripe product from pricing_config
-    const { data: pricingRow, error: pricingError } = await supabase
+    const { data: pricingRow, error: pricingError } = await adminSupabase
       .from('pricing_config')
       .select('stripe_product_id, price_cents')
       .eq('plan_id', planKey)
@@ -60,24 +64,38 @@ serve(async (req) => {
     if (pricingError || !pricingRow) {
       return new Response(
         JSON.stringify({ error: `Plan '${planKey}' not found in pricing_config.` }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Look up or create a Stripe Price for this product + amount
-    // This allows dynamic pricing — create a new price object on the fly
-    const price = await stripe.prices.create({
+    // Look up existing Stripe Price before creating a new one
+    const prices = await stripe.prices.list({
       product: pricingRow.stripe_product_id,
-      unit_amount: pricingRow.price_cents,
-      currency: 'usd',
-      recurring: {
-        interval: period === 'yearly' ? 'year' : 'month',
-      },
-      metadata: {
-        plan_id: planKey,
-        source: 'android_checkout',
-      },
+      active: true,
     })
+
+    const interval = period === 'yearly' ? 'year' : 'month'
+    const existingPrice = prices.data.find(
+      (p) => p.unit_amount === pricingRow.price_cents && p.recurring?.interval === interval
+    )
+
+    let priceId: string
+    if (existingPrice) {
+      priceId = existingPrice.id
+    } else {
+      // Create new price on the fly only if no matching price exists
+      const newPrice = await stripe.prices.create({
+        product: pricingRow.stripe_product_id,
+        unit_amount: pricingRow.price_cents,
+        currency: 'usd',
+        recurring: { interval },
+        metadata: {
+          plan_id: planKey,
+          source: 'android_checkout',
+        },
+      })
+      priceId = newPrice.id
+    }
 
     // Create the Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
@@ -85,7 +103,7 @@ serve(async (req) => {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: price.id,
+          price: priceId,
           quantity: 1,
         },
       ],
@@ -110,10 +128,7 @@ serve(async (req) => {
       JSON.stringify({ url: session.url }),
       {
         status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     )
   } catch (err) {
@@ -122,7 +137,7 @@ serve(async (req) => {
       JSON.stringify({ error: err.message || 'Internal server error' }),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     )
   }

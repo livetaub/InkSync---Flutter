@@ -1,16 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import '../config/theme.dart';
 import '../services/auth_service.dart';
 import '../services/settings_service.dart';
+import 'package:provider/provider.dart';
 
-import '../screens/settings/settings_screen.dart';
-import '../screens/tutorial/tutorial_screen.dart';
-import '../screens/help/help_screen.dart';
-
-final authService = AuthService();
 
 /// Collapsed mobile sidebar showing only icons
 /// Provides navigation similar to desktop but optimized for mobile screens
@@ -213,7 +207,7 @@ class _MobileSidebarState extends State<MobileSidebar> {
 
   Widget _buildNavIcon(int index, IconData icon, String label) {
     final isSelected = widget.currentIndex == index;
-    const selectedColor = Color(0xFF3B82F6); // Blue color for selection
+    const selectedColor = AppTheme.selectionBlue; // Blue color for selection
 
     return Tooltip(
       message: label,
@@ -291,24 +285,12 @@ class _MobileSidebarState extends State<MobileSidebar> {
     );
   }
 
-  String _formatSyncTime(DateTime time) {
-    final now = DateTime.now();
-    final diff = now.difference(time);
 
-    if (diff.inSeconds < 60) {
-      return 'just now';
-    } else if (diff.inMinutes < 60) {
-      return '${diff.inMinutes}m ago';
-    } else if (diff.inHours < 24) {
-      return '${diff.inHours}h ago';
-    } else {
-      return '${diff.inDays}d ago';
-    }
-  }
 
 
 
   Widget _buildUserAvatar() {
+    final authService = Provider.of<AuthService>(context, listen: false);
     return StreamBuilder<UserSettings>(
       stream: SettingsService(authService).getSettingsStream(),
       builder: (context, settingsSnapshot) {

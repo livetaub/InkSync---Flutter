@@ -53,11 +53,11 @@
 .toggle-bg button.active {
   background: var(--primary);
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 217, 140, 0.3);
+  box-shadow: 0 4px 12px rgba(234, 179, 8, 0.3);
 }
 
 .discount-badge {
-  background: rgba(16, 217, 140, 0.15);
+  background: rgba(234, 179, 8, 0.15);
   color: var(--primary);
   font-weight: 700;
   font-size: 12px;
@@ -91,7 +91,7 @@
 
 .pricing-card.premium {
   border: 2px solid var(--primary);
-  box-shadow: 0 20px 40px rgba(16, 217, 140, 0.15);
+  box-shadow: 0 20px 40px rgba(234, 179, 8, 0.15);
 }
 
 .popular-badge {

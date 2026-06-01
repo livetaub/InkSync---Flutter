@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../config/theme.dart';
 import '../services/auth_service.dart';
-import '../services/settings_service.dart';
+
 import '../screens/trash/trash_screen.dart';
 import '../screens/help/help_screen.dart';
 import '../screens/subscription/subscription_screen.dart';

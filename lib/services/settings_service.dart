@@ -1,11 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite/sqflite.dart'; // Mobile-only; guarded by kIsWeb checks
 import 'auth_service.dart';
 import 'local_database_service.dart';
 import 'sync_engine.dart';
 
-/// UserSettings Model
+/// User settings with dual serialization support.
+/// - [toMap]/[fromMap]: Used for local SQLite storage (camelCase keys)
+/// - [toSupabase]/[fromSupabase]: Used for cloud Supabase storage (snake_case keys)
 class UserSettings {
   final String? id;
   final String viewMode;
@@ -32,8 +34,8 @@ class UserSettings {
   factory UserSettings.fromSupabase(Map<String, dynamic> data) {
     return UserSettings(
       id: data['id'],
-      viewMode: data['sort_order'] ?? 'list', // Mapped from schema
-      sortBy: data['sort_order'] ?? 'modified',
+      viewMode: data['view_mode'] ?? 'list',
+      sortBy: data['sort_by'] ?? 'modified',
       darkMode: false, // Not in schema, use default
       notificationsEnabled: data['haptic_enabled'] ?? true,
       isPremium: data['is_premium'] ?? false,
@@ -99,8 +101,8 @@ class SettingsService {
       if (local != null) {
         return UserSettings(
           id: local['id'] as String?,
-          viewMode: local['sort_order'] ?? 'list',
-          sortBy: local['sort_order'] ?? 'modified',
+          viewMode: local['view_mode'] ?? 'list',
+          sortBy: local['sort_by'] ?? 'modified',
           darkMode: false,
           notificationsEnabled: (local['haptic_enabled'] as int?) == 1,
           isPremium: (local['is_premium'] as int?) == 1,
@@ -150,13 +152,28 @@ class SettingsService {
     }
   }
 
+  /// Valid column names for settings updates (allowlist)
+  static const _validColumns = {
+    'theme_mode', 'view_mode', 'sort_by', 'sort_order',
+    'default_color', 'show_preview', 'auto_save',
+    'font_size', 'is_premium', 'account_type',
+    'haptic_enabled', 'notifications_enabled',
+  };
+
   /// Update specific setting
   Future<void> updateSetting(String key, dynamic value) async {
+    // Convert camelCase key to snake_case for validation
+    final snakeKey = key.replaceAllMapped(
+      RegExp(r'[A-Z]'),
+      (m) => '_${m.group(0)!.toLowerCase()}',
+    );
+
+    if (!_validColumns.contains(snakeKey)) {
+      debugPrint('Invalid setting key: $snakeKey');
+      return;
+    }
+
     if (!kIsWeb) {
-      final snakeKey = key.replaceAllMapped(
-        RegExp(r'[A-Z]'),
-        (m) => '_${m.group(0)!.toLowerCase()}',
-      );
       var dbValue = value;
       if (value is bool) {
         dbValue = value ? 1 : 0;
@@ -185,12 +202,6 @@ class SettingsService {
     if (_userId.isEmpty) return;
 
     try {
-      // Map camelCase keys to snake_case
-      final snakeKey = key.replaceAllMapped(
-        RegExp(r'[A-Z]'),
-        (m) => '_${m.group(0)!.toLowerCase()}',
-      );
-
       await _client
           .from('user_settings')
           .update({snakeKey: value})
@@ -253,7 +264,7 @@ class SettingsService {
   Stream<UserSettings> getSettingsStream() {
     // Return a stream that emits current settings
     // For real-time updates, you'd need Supabase Realtime configured
-    return Stream.periodic(const Duration(seconds: 30), (_) async {
+    return Stream.periodic(const Duration(seconds: 300), (_) async {
       return await getSettings();
     }).asyncMap((future) => future);
   }

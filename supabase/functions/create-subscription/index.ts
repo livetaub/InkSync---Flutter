@@ -16,14 +16,15 @@
 //   STRIPE_PRODUCT_PREMIUM     = prod_... (Stripe Product ID for Premium)
 //   STRIPE_PRODUCT_PRO         = prod_... (Stripe Product ID for Premium Pro)
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://app.inksyncnote.com",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req: Request) => {
@@ -35,7 +36,7 @@ serve(async (req: Request) => {
   try {
     // ── 1. Initialize Stripe ──────────────────────────────────
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
-      apiVersion: "2023-10-16",
+      apiVersion: "2024-06-20",
       httpClient: Stripe.createFetchHttpClient(),
     });
 
@@ -151,18 +152,34 @@ serve(async (req: Request) => {
       },
     });
 
-    // ── 7. Create a dynamic Price using database values ───────
-    const price = await stripe.prices.create({
+    // ── 7. Look up or create a dynamic Price using database values ───
+    // Check for existing price before creating to avoid duplicates
+    const existingPrices = await stripe.prices.list({
       product: productId,
-      unit_amount: priceAmount,
-      currency: "usd",
-      recurring: { interval: interval },
+      active: true,
     });
+
+    const existingPrice = existingPrices.data.find(
+      (p) => p.unit_amount === priceAmount && p.recurring?.interval === interval
+    );
+
+    let priceId: string;
+    if (existingPrice) {
+      priceId = existingPrice.id;
+    } else {
+      const newPrice = await stripe.prices.create({
+        product: productId,
+        unit_amount: priceAmount,
+        currency: "usd",
+        recurring: { interval: interval },
+      });
+      priceId = newPrice.id;
+    }
 
     // ── 8. Create the Subscription ────────────────────────────
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
-      items: [{ price: price.id }],
+      items: [{ price: priceId }],
       default_payment_method: paymentMethodId,
       payment_behavior: "default_incomplete",
       payment_settings: {

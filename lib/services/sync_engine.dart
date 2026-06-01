@@ -15,7 +15,7 @@ class SyncEngine {
   final LocalDatabaseService _localDb;
   final AuthService _auth;
 
-  bool _isSyncing = false;
+  static bool _isSyncing = false;
   bool get isSyncing => _isSyncing;
 
   /// Stream controller to notify the UI of sync state changes

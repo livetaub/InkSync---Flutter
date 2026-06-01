@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../config/theme.dart';
+import '../config/theme.dart';
 import '../utils/ui_helper.dart';
 
 /// LoginPromptModal — Reusable bottom sheet shown when a guest user

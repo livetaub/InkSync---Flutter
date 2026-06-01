@@ -20,6 +20,7 @@ ADD CONSTRAINT collaboration_invites_note_id_to_email_key UNIQUE (note_id, to_em
 -- 3. Replace the email trigger to fire on INSERT OR UPDATE (when changing to pending)
 DROP TRIGGER IF EXISTS on_invite_created_send_email ON collaboration_invites;
 
+DROP FUNCTION IF EXISTS send_collaboration_invite_email() CASCADE;
 CREATE OR REPLACE FUNCTION send_collaboration_invite_email()
 RETURNS trigger AS $$
 DECLARE
@@ -218,7 +219,7 @@ BEGIN
     url := 'https://api.resend.com/emails',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer re_9ViRG4Ys_6u6EK1mdu27KSBDTTmDGRMEJ'
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'resend_api_key' LIMIT 1)
     ),
     body := jsonb_build_object(
       'from', 'InkSync <noreply@invite.inksyncnote.com>',

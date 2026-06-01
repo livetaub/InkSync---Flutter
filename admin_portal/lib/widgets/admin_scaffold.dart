@@ -28,15 +28,51 @@ class _AdminScaffoldState extends State<AdminScaffold> {
         if (mounted) context.go('/login');
         return;
       }
-      await Supabase.instance.client
+      final result = await Supabase.instance.client
           .from('admin_users')
           .select('role')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
+      if (result == null) {
+        // User is definitely not an admin
+        await Supabase.instance.client.auth.signOut();
+        if (mounted) context.go('/login');
+        return;
+      }
       if (mounted) setState(() => _isVerifying = false);
-    } catch (_) {
+    } on PostgrestException catch (_) {
+      // Database/RLS error — user is not an admin
       await Supabase.instance.client.auth.signOut();
       if (mounted) context.go('/login');
+    } catch (e) {
+      // Network or other transient error — offer retry
+      debugPrint('Admin verification error: $e');
+      if (mounted) {
+        final shouldRetry = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Connection Error'),
+            content: const Text('Could not verify admin status. Please check your network connection.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Sign Out'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        );
+        if (shouldRetry == true) {
+          _verifyAdmin();
+        } else {
+          await Supabase.instance.client.auth.signOut();
+          if (mounted) context.go('/login');
+        }
+      }
     }
   }
 

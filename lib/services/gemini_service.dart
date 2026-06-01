@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
-import 'debug_service.dart';
+import 'package:flutter/foundation.dart';
 
 /// Gemini AI Service for writing assistance
 class GeminiService {
@@ -21,7 +21,7 @@ class GeminiService {
 
   /// Process text with AI based on selected tone
   Future<String> processText(String text, String tone) async {
-    DebugService.instance.log(
+    debugPrint(
       '[INFO] AI processing request - tone: $tone, text length: ${text.length}',
     );
 
@@ -71,7 +71,13 @@ Text: "$text"''';
   /// Call Gemini API
   Future<String> _invokeGemini(String prompt) async {
     try {
-      DebugService.instance.log('[INFO] Calling Gemini API...');
+      if (_apiKey.isEmpty) {
+        throw Exception(
+          'Gemini API key not configured. Build with: --dart-define=GEMINI_API_KEY=your_key',
+        );
+      }
+
+      debugPrint('[INFO] Calling Gemini API...');
 
       final response = await http.post(
         Uri.parse('$_apiUrl?key=$_apiKey'),
@@ -111,7 +117,7 @@ Text: "$text"''';
         }),
       );
 
-      DebugService.instance.log(
+      debugPrint(
         '[INFO] Gemini API response status: ${response.statusCode}',
       );
 
@@ -119,17 +125,17 @@ Text: "$text"''';
         final data = jsonDecode(response.body);
         final text = data['candidates']?[0]?['content']?['parts']?[0]?['text'];
         if (text != null) {
-          DebugService.instance.log(
+          debugPrint(
             '[INFO] Gemini API success - response length: ${text.length}',
           );
           return text.trim();
         }
         final errorMsg =
             'No response generated from Gemini - Response body: ${response.body}';
-        DebugService.instance.log('[ERROR] $errorMsg');
+        debugPrint('[ERROR] $errorMsg');
         throw Exception(errorMsg);
       } else {
-        DebugService.instance.log(
+        debugPrint(
           '[ERROR] Gemini API error - Status: ${response.statusCode}, Body: ${response.body}',
         );
         final errorData = jsonDecode(response.body);
@@ -139,7 +145,7 @@ Text: "$text"''';
         );
       }
     } catch (e, stack) {
-      DebugService.instance.log(
+      debugPrint(
         '[ERROR] Gemini API call failed: $e\nStack: $stack',
       );
       rethrow;

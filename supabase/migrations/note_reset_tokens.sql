@@ -107,7 +107,7 @@ BEGIN
     url := 'https://api.resend.com/emails',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer re_9ViRG4Ys_6u6EK1mdu27KSBDTTmDGRMEJ'
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'resend_api_key' LIMIT 1)
     ),
     body := jsonb_build_object(
       'from', 'InkSync <noreply@invite.inksyncnote.com>',

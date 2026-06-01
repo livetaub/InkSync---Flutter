@@ -43,3 +43,24 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Deploy scripts with secrets
+*.bat
+
+# Debug/temp files
+check_braces*.dart
+doctor.txt
+emulators.txt
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Keystore files
+key.properties
+*.keystore
+*.jks
+
+# Wrangler
+.wrangler/

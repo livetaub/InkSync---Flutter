@@ -3,15 +3,26 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import './PricingPage.css';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+interface PlanPricing {
+  price_monthly: number;
+  price_yearly: number;
+  notes_limit: number;
+  ai_credits_limit: number;
+}
+
+interface PricingConfig {
+  [planId: string]: PlanPricing;
+}
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const PricingPage = () => {
   const APP_URL = 'https://app.inksyncnote.com';
   
-  const [pricingConfig, setPricingConfig] = useState<Record<string, any>>({
-    free: { notes_limit: 75, ai_credits_limit: 0 },
+  const [pricingConfig, setPricingConfig] = useState<PricingConfig>({
+    free: { price_monthly: 0, price_yearly: 0, notes_limit: 75, ai_credits_limit: 0 },
     premium: { price_monthly: 4.99, price_yearly: 49.99, notes_limit: 250, ai_credits_limit: 100 },
     premium_pro: { price_monthly: 9.99, price_yearly: 99.99, notes_limit: 500, ai_credits_limit: 200 },
   });
@@ -20,18 +31,22 @@ const PricingPage = () => {
 
   useEffect(() => {
     const fetchPricing = async () => {
-      if (!supabaseUrl || !supabaseAnonKey) return;
+      if (!supabase) return;
       try {
         const { data, error } = await supabase.from('global_pricing').select('*');
         if (data && !error) {
-          const newConfig = { ...pricingConfig };
-          data.forEach(row => {
+          const newConfig: PricingConfig = {
+            free: { price_monthly: 0, price_yearly: 0, notes_limit: 75, ai_credits_limit: 0 },
+            premium: { price_monthly: 4.99, price_yearly: 49.99, notes_limit: 250, ai_credits_limit: 100 },
+            premium_pro: { price_monthly: 9.99, price_yearly: 99.99, notes_limit: 500, ai_credits_limit: 200 },
+          };
+          data.forEach((row: PlanPricing & { plan_id: string }) => {
             newConfig[row.plan_id] = row;
           });
           setPricingConfig(newConfig);
         }
-      } catch (err) {
-        console.error('Error fetching pricing:', err);
+      } catch {
+        // Pricing fetch failed — fallback defaults are used
       }
     };
     fetchPricing();

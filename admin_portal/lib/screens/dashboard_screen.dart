@@ -32,7 +32,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final response = await Supabase.instance.client
           .from('profiles')
           .select()
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: true)
+          .limit(500);
       
       final profiles = List<Map<String, dynamic>>.from(response);
 
