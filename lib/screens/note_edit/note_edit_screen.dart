@@ -2405,28 +2405,24 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   }
 
   void _showWritingAssistSheet() {
-    String textToProcess;
-    bool hasSelection = false;
-
     final selection = _contentController.selection;
-    // Check if there's a valid, non-empty selection
-    if (selection.isValid &&
-        selection.baseOffset != selection.extentOffset &&
-        selection.start >= 0 &&
-        selection.end <= _contentController.text.length) {
-      textToProcess = _contentController.text.substring(
-        selection.start,
-        selection.end,
-      );
-      hasSelection = true;
-    } else {
-      // No selection - use all text
-      textToProcess = _contentController.text;
-      hasSelection = false;
+    // Require user to select text
+    if (!selection.isValid ||
+        selection.baseOffset == selection.extentOffset ||
+        selection.start < 0 ||
+        selection.end > _contentController.text.length) {
+      showErrorSnackBar(context, 'Select the text you want AI to enhance');
+      return;
     }
 
-    if (textToProcess.isEmpty) {
-      showErrorSnackBar(context, 'Please enter some text first');
+    final textToProcess = _contentController.text.substring(
+      selection.start,
+      selection.end,
+    );
+    const hasSelection = true;
+
+    if (textToProcess.trim().isEmpty) {
+      showErrorSnackBar(context, 'Selected text is empty');
       return;
     }
 
@@ -4788,17 +4784,7 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
       final geminiService = Provider.of<GeminiService>(context, listen: false);
       final result = await geminiService.processText(widget.text, tone);
       
-      // Increment AI Credits Used natively
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId != null) {
-        try {
-          final profile = await Supabase.instance.client.from('profiles').select('ai_credits_used').eq('id', userId).single();
-          final current = profile['ai_credits_used'] as int? ?? 0;
-          await Supabase.instance.client.from('profiles').update({'ai_credits_used': current + 1}).eq('id', userId);
-        } catch (e) {
-          debugPrint('Failed to increment AI credits: $e');
-        }
-      }
+
 
       setState(() {
         _resultController.text = result;
@@ -4912,9 +4898,7 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    widget.hasSelection
-                        ? "I'll magically rewrite just the text you've highlighted."
-                        : "Pro tip: You can highlight specific text before opening AI assist to only rewrite that part. Otherwise, I'll magically rewrite the entire note for you!",
+                    "I'll magically rewrite just the text you've selected.",
                     style: TextStyle(
                       fontSize: 13,
                       color: isDark ? Colors.blue.shade200 : Colors.blue.shade800,
@@ -4978,7 +4962,40 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
                 ),
               ),
               child: _isProcessing
-                  ? const Center(child: CircularProgressIndicator())
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 60,
+                            height: 60,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppTheme.primaryColor.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Enhancing your text...',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white54 : AppTheme.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'This may take a few seconds',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white30 : Colors.grey.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
                   : _error != null
                   ? Center(
                       child: Column(
@@ -5069,9 +5086,9 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
                       Navigator.pop(context);
                     },
                     icon: const Icon(Icons.check),
-                    label: Text(
-                      widget.hasSelection ? 'Replace Selection' : 'Replace All',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    label: const Text(
+                      'Replace Selection',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,

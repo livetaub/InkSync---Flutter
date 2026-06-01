@@ -42,7 +42,7 @@ jobs:
           EOF
 
       - name: Build App Bundle (AAB)
-        run: flutter build appbundle --release --dart-define=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+        run: flutter build appbundle --release
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
