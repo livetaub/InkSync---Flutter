@@ -56,6 +56,9 @@ class _NoteCardState extends State<NoteCard> with SingleTickerProviderStateMixin
     super.didUpdateWidget(oldWidget);
     if (widget.isHighlighted && !oldWidget.isHighlighted) {
       _shakeController.forward(from: 0.0);
+    } else if (!widget.isHighlighted && oldWidget.isHighlighted) {
+      // Reset to original position when highlight is removed
+      _shakeController.reset();
     }
   }
 

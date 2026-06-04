@@ -372,6 +372,10 @@ class HomeScreenState extends State<HomeScreen> {
             Navigator.pop(ctx);
             _openNote(note);
           },
+          onMore: () {
+            Navigator.pop(ctx);
+            _openNote(note);
+          },
         ),
       ),
     ).then((_) {
@@ -838,12 +842,14 @@ class _NoteContextMenu extends StatelessWidget {
   final VoidCallback onPin;
   final VoidCallback onDelete;
   final VoidCallback onOpen;
+  final VoidCallback onMore;
 
   const _NoteContextMenu({
     required this.note,
     required this.onPin,
     required this.onDelete,
     required this.onOpen,
+    required this.onMore,
   });
 
   @override
@@ -905,6 +911,12 @@ class _NoteContextMenu extends StatelessWidget {
                 label: 'Delete',
                 color: Colors.red,
                 onTap: onDelete,
+              ),
+              _buildAction(
+                context,
+                icon: Icons.more_horiz_rounded,
+                label: 'More',
+                onTap: onMore,
               ),
             ],
           ),
