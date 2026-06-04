@@ -4,6 +4,7 @@
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart' show LaunchMode;
 
 /// Legacy AuthService wrapper around Supabase Auth
 /// This allows existing code to continue working during migration
@@ -79,9 +80,12 @@ class AuthService {
           redirectTo: redirectUrl,
         );
       } else {
+        // Use Chrome Custom Tab (inAppBrowserView) instead of external Chrome.
+        // This auto-closes when the deep link redirect fires.
         await _client.auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: 'io.supabase.inksync://login-callback/',
+          authScreenLaunchMode: LaunchMode.inAppBrowserView,
         );
       }
       debugPrint('[INFO] Google sign-in initiated. Redirecting...');
