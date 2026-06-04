@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart' show LaunchMode;
 
 /// Supabase Authentication Service
 /// Replaces Firebase Auth with same interface for easy migration
@@ -77,10 +78,13 @@ class SupabaseAuthService {
         // captured when the page reloads via Supabase.initialize()
         return null;
       } else {
-        // For mobile, use OAuth with native sign-in
+        // For mobile, use Chrome Custom Tab (inAppBrowserView) instead of
+        // external Chrome. This auto-closes when the deep link redirect fires,
+        // so the user doesn't have a stale Chrome tab left in the background.
         await _client.auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: 'io.supabase.inksync://login-callback/',
+          authScreenLaunchMode: LaunchMode.inAppBrowserView,
         );
         debugPrint('[INFO] Google sign-in initiated');
         return null; // OAuth redirects, so no immediate response
