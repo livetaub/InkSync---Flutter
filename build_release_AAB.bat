@@ -1,5 +1,24 @@
 @echo off
-set "JAVA_HOME=C:\Users\livet\AppData\Local\Temp\openjdk17\jdk-17.0.19+10"
+:: 0. Locate or download JDK 17
+set "JAVA_HOME=%LOCALAPPDATA%\openjdk17"
+if not exist "%JAVA_HOME%\bin\java.exe" (
+    echo ========================================================
+    echo   Java Development Kit (JDK) 17 is missing.
+    echo   Downloading portable OpenJDK 17 (Temurin)...
+    echo   This is a one-time setup. Please wait...
+    echo ========================================================
+    echo.
+    if exist "%LOCALAPPDATA%\openjdk17_tmp" rd /s /q "%LOCALAPPDATA%\openjdk17_tmp"
+    mkdir "%LOCALAPPDATA%\openjdk17_tmp"
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%%2B7/OpenJDK17U-jdk_x64_windows_hotspot_17.0.10_7.zip' -OutFile '%LOCALAPPDATA%\openjdk17_tmp\jdk.zip'"
+    echo Extracting JDK...
+    powershell -Command "Expand-Archive -Path '%LOCALAPPDATA%\openjdk17_tmp\jdk.zip' -DestinationPath '%LOCALAPPDATA%\openjdk17_tmp'"
+    
+    for /f "tokens=*" %%i in ('dir /b /ad "%LOCALAPPDATA%\openjdk17_tmp"') do (
+        move "%LOCALAPPDATA%\openjdk17_tmp\%%i" "%JAVA_HOME%"
+    )
+    rd /s /q "%LOCALAPPDATA%\openjdk17_tmp"
+)
 set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
 set "GRADLE_OPTS=-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 
