@@ -4396,7 +4396,32 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                   _buildViewOnlyBanner(),
                   _buildMetadataAndTags(isDark),
                   // Content area (body)
-                  Container(
+                  GestureDetector(
+                    behavior: HitTestBehavior.deferToChild,
+                    onTap: () {
+                      if (!_canUserEdit) return;
+                      // Only handle if body doesn't already have focus
+                      // (tapping on text is handled by TextField natively)
+                      final hadFocus = _contentFocusNode.hasFocus;
+                      if (!_isEditing) {
+                        setState(() {
+                          _isEditing = true;
+                          _showSearch = false;
+                        });
+                      }
+                      if (!hadFocus) {
+                        // Tapped on empty space — focus body, cursor at end
+                        _contentFocusNode.requestFocus();
+                        Future.delayed(const Duration(milliseconds: 50), () {
+                          if (mounted) {
+                            _contentController.selection = TextSelection.collapsed(
+                              offset: _contentController.text.length,
+                            );
+                          }
+                        });
+                      }
+                    },
+                    child: Container(
                     constraints: BoxConstraints(minHeight: constraints.maxHeight),
                     child: Stack(
                       children: [
