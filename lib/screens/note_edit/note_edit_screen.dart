@@ -4399,18 +4399,10 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                   GestureDetector(
                     behavior: HitTestBehavior.deferToChild,
                     onTap: () {
-                      if (!_canUserEdit) return;
-                      // Only handle if body doesn't already have focus
-                      // (tapping on text is handled by TextField natively)
-                      final hadFocus = _contentFocusNode.hasFocus;
-                      if (!_isEditing) {
-                        setState(() {
-                          _isEditing = true;
-                          _showSearch = false;
-                        });
-                      }
-                      if (!hadFocus) {
-                        // Tapped on empty space — focus body, cursor at end
+                      if (!_canUserEdit || !_isEditing) return;
+                      // Already in edit mode — if body doesn't have focus,
+                      // switch focus to body and place cursor at end of text
+                      if (!_contentFocusNode.hasFocus) {
                         _contentFocusNode.requestFocus();
                         Future.delayed(const Duration(milliseconds: 50), () {
                           if (mounted) {
