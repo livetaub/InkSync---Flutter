@@ -4606,7 +4606,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                       child: Row(
                         children: [
                           // Drag handle on left
-                          if (_canUserEdit) ReorderableDragStartListener(
+                          if (_canUserEdit) ReorderableDelayedDragStartListener(
                             index: index,
                             child: const Padding(
                               padding: EdgeInsets.symmetric(horizontal: 8),
