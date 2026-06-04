@@ -10,6 +10,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>io.supabase.inksync</string>
+				<string>com.googleusercontent.apps.624897890206-6b8sbg21sgro6r7co5ocf02tgsben6hk</string>
 			</array>
 		</dict>
 	</array>
