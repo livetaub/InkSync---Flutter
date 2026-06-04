@@ -12,7 +12,7 @@ const Navbar = () => {
       <div className="container nav-container">
         <Link to="/" className="brand">
           <div className="logo-icon">
-            <RefreshCw size={24} color="#fff" />
+            <img src="/logo.png" alt="InkSync Logo" style={{ width: 24, height: 24, objectFit: 'contain' }} />
           </div>
           <span className="brand-text">InkSync</span>
         </Link>

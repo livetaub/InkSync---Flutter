@@ -205,7 +205,7 @@ const LandingPage = () => {
         <div className="footer-content">
           <div className="brand">
             <div className="logo-icon" style={{ width: 32, height: 32 }}>
-              <RefreshCw size={18} color="#fff" />
+              <img src="/logo.png" alt="InkSync Logo" style={{ width: 18, height: 18, objectFit: 'contain' }} />
             </div>
             <span className="brand-text">InkSync</span>
           </div>

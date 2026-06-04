@@ -6,11 +6,13 @@ import '../../config/theme.dart';
 class TutorialScreen extends StatefulWidget {
   final bool isOnboarding;
   final bool isDialog;
+  final VoidCallback? onComplete;
 
   const TutorialScreen({
     super.key,
     this.isOnboarding = false,
     this.isDialog = false,
+    this.onComplete,
   });
 
   @override
@@ -84,7 +86,9 @@ class _TutorialScreenState extends State<TutorialScreen> {
   }
 
   void _finish() async {
-    if (mounted) {
+    if (widget.onComplete != null) {
+      widget.onComplete!();
+    } else if (mounted) {
       Navigator.pop(context);
     }
   }

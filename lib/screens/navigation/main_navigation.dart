@@ -83,10 +83,13 @@ class _MainNavigationState extends State<MainNavigation> {
       final subService = SubscriptionService.instance;
       await subService.initialize(authService);
 
-      // Run delta sync
+      // Run delta sync (pulls server notes into local SQLite)
       final syncEngine = SyncEngine(LocalDatabaseService.instance, authService);
       await syncEngine.sync();
+
+      // Refresh the HomeScreen widgets so the synced notes actually appear
       if (mounted) {
+        await _performDataSync();
         setState(() => _lastSyncAt = DateTime.now());
       }
     }

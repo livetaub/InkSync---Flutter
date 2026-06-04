@@ -12,11 +12,24 @@ import '../../services/supabase_auth_service.dart';
 import '../../services/notes_service.dart';
 import 'login_screen.dart';
 import 'welcome_screen.dart';
+import '../tutorial/tutorial_screen.dart';
 import '../navigation/main_navigation.dart';
 
-/// AuthWrapper - Decides whether to show login or home based on auth state.
-/// On WEB: Uses Supabase auth stream (existing behavior).
-/// On MOBILE: Checks for guest mode via SharedPreferences, shows WelcomeScreen on first launch.
+/// Mobile-only phases for the onboarding state machine.
+enum _MobilePhase { loading, welcome, tutorial, app }
+
+/// AuthWrapper — Decides what to show based on auth state and onboarding progress.
+///
+/// WEB:    Uses Supabase auth stream. Shows LoginScreen or MainNavigation.
+///         Completely unchanged from previous behavior.
+///
+/// MOBILE: Clean state machine (first launch only):
+///   1. loading   → Check SharedPreferences + session
+///   2. welcome   → WelcomeScreen (Google sign-in / email login / guest)
+///   3. tutorial  → TutorialScreen (6 swipeable feature pages)
+///   4. app       → MainNavigation
+///
+///   Subsequent launches skip straight to [app].
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -25,23 +38,17 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  bool _isCheckingGuest = true;
-  bool _isGuestMode = false;
+  _MobilePhase _phase = _MobilePhase.loading;
   StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      final AuthChangeEvent event = data.event;
-      if (event == AuthChangeEvent.passwordRecovery) {
-        _handlePasswordRecovery();
-      }
-    });
+    _authSubscription =
+        Supabase.instance.client.auth.onAuthStateChange.listen(_onAuthEvent);
+
     if (!kIsWeb) {
-      _checkGuestMode();
-    } else {
-      _isCheckingGuest = false;
+      _initMobile();
     }
   }
 
@@ -51,6 +58,205 @@ class _AuthWrapperState extends State<AuthWrapper> {
     super.dispose();
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Auth event handler
+  // ─────────────────────────────────────────────────────────────
+
+  void _onAuthEvent(AuthState data) {
+    final event = data.event;
+
+    // Mobile: OAuth deep-link returned while WelcomeScreen is visible
+    if (!kIsWeb &&
+        event == AuthChangeEvent.signedIn &&
+        _phase == _MobilePhase.welcome) {
+      _advanceToTutorial();
+      return;
+    }
+
+    // Both platforms: password recovery flow
+    if (event == AuthChangeEvent.passwordRecovery) {
+      _handlePasswordRecovery();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Mobile init — decide which phase to start in
+  // ─────────────────────────────────────────────────────────────
+
+  Future<void> _initMobile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasCompletedOnboarding =
+        prefs.getBool('has_seen_onboarding') ?? false;
+    final session = Supabase.instance.client.auth.currentSession;
+
+    if (!mounted) return;
+
+    if (hasCompletedOnboarding) {
+      // Returning user → straight to app
+      setState(() => _phase = _MobilePhase.app);
+    } else if (session != null) {
+      // Has a session but never finished onboarding
+      // (e.g. redirected here from LoginScreen after email login)
+      setState(() => _phase = _MobilePhase.tutorial);
+    } else {
+      // First launch, no session → show welcome
+      setState(() => _phase = _MobilePhase.welcome);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Phase transitions
+  // ─────────────────────────────────────────────────────────────
+
+  void _advanceToTutorial() {
+    if (mounted) {
+      setState(() => _phase = _MobilePhase.tutorial);
+    }
+  }
+
+  Future<void> _onTutorialComplete() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_seen_onboarding', true);
+    if (mounted) {
+      setState(() => _phase = _MobilePhase.app);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // build()
+  // ─────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    // ── WEB: existing behavior, completely untouched ──────────
+    if (kIsWeb) {
+      return _buildWebFlow(context);
+    }
+
+    // ── MOBILE: state machine ────────────────────────────────
+    switch (_phase) {
+      case _MobilePhase.loading:
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+
+      case _MobilePhase.welcome:
+        return _buildWelcome(context);
+
+      case _MobilePhase.tutorial:
+        return TutorialScreen(
+          isOnboarding: true,
+          onComplete: _onTutorialComplete,
+        );
+
+      case _MobilePhase.app:
+        return const MainNavigation();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Mobile: WelcomeScreen with all callbacks wired up
+  // ─────────────────────────────────────────────────────────────
+
+  Widget _buildWelcome(BuildContext context) {
+    final authService =
+        Provider.of<SupabaseAuthService>(context, listen: false);
+
+    return WelcomeScreen(
+      onLoginTap: () {
+        // Push LoginScreen (not replace) so AuthWrapper stays alive
+        // and the auth listener can detect a signedIn event.
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      },
+      onSignUpTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const LoginScreen(showRegisterDialog: true),
+          ),
+        );
+      },
+      onGoogleSignIn: () async {
+        await authService.signInWithGoogle();
+        // The signedIn event in _onAuthEvent will call _advanceToTutorial
+      },
+      onGuestContinue: () async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_guest_mode', true);
+        _advanceToTutorial();
+      },
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Web: existing StreamBuilder flow (unchanged)
+  // ─────────────────────────────────────────────────────────────
+
+  Widget _buildWebFlow(BuildContext context) {
+    final authService =
+        Provider.of<SupabaseAuthService>(context, listen: false);
+
+    return StreamBuilder<AuthState>(
+      stream: authService.authStateChanges,
+      builder: (context, snapshot) {
+        final session = Supabase.instance.client.auth.currentSession;
+
+        if (session != null) {
+          // Clean URL query parameters to avoid loops/stuck codes
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            platform.replaceHistoryState('/app');
+          });
+
+          final pendingPlan = platform.getLocalStorageValue('pending_plan');
+          final pendingPeriod =
+              platform.getLocalStorageValue('pending_period');
+          if (pendingPlan != null && pendingPlan.isNotEmpty) {
+            platform.removeLocalStorageValue('pending_plan');
+            platform.removeLocalStorageValue('pending_period');
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final origin = platform.getLocationOrigin();
+              platform.setLocationHref(
+                '$origin/checkout?plan=$pendingPlan&period=${pendingPeriod ?? 'monthly'}',
+              );
+            });
+          }
+          return const MainNavigation();
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading...',
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey
+                          : AppTheme.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return const LoginScreen();
+      },
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Password recovery (shared between web and mobile)
+  // ─────────────────────────────────────────────────────────────
+
   Future<void> _handlePasswordRecovery() async {
     final prefs = await SharedPreferences.getInstance();
     final pendingNoteId = prefs.getString('pending_unlock_note_id');
@@ -59,8 +265,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       try {
         final authService = AuthService();
         final notesService = NotesService(authService);
-        
-        // Remove lock first
+
         await notesService.updateNote(pendingNoteId, {
           'isLocked': false,
           'lockPassword': null,
@@ -148,17 +353,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   final hasPassword = passwordController.text.isNotEmpty;
                   final authService = AuthService();
                   final notesService = NotesService(authService);
-                  
+
                   await notesService.updateNote(noteId, {
                     'isLocked': hasPassword,
-                    'lockPassword': hasPassword ? passwordController.text : null,
+                    'lockPassword':
+                        hasPassword ? passwordController.text : null,
                   });
 
                   if (context.mounted) {
                     Navigator.pop(context);
-                    showSuccessSnackBar(context, hasPassword
-                        ? 'New note password set successfully!'
-                        : 'Note will remain unlocked.');
+                    showSuccessSnackBar(
+                      context,
+                      hasPassword
+                          ? 'New note password set successfully!'
+                          : 'Note will remain unlocked.',
+                    );
                   }
                 } catch (e) {
                   if (context.mounted) {
@@ -171,124 +380,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
           ),
         ],
       ),
-    );
-  }
-
-  Future<void> _checkGuestMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
-    final isGuest = prefs.getBool('is_guest_mode') ?? false;
-
-    if (mounted) {
-      setState(() {
-        _isGuestMode = isGuest;
-        _isCheckingGuest = !hasSeenOnboarding && !isGuest;
-      });
-    }
-
-    // If user has seen onboarding and chose guest, go straight to main
-    // If user has an active session, go to main
-    // If first launch, show welcome screen (_isCheckingGuest stays true)
-    if (hasSeenOnboarding) {
-      setState(() => _isCheckingGuest = false);
-    }
-  }
-
-  Future<void> _enterGuestMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('has_seen_onboarding', true);
-    await prefs.setBool('is_guest_mode', true);
-    if (mounted) {
-      setState(() {
-        _isGuestMode = true;
-        _isCheckingGuest = false;
-      });
-    }
-  }
-
-  void _goToLogin() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final authService = Provider.of<SupabaseAuthService>(
-      context,
-      listen: false,
-    );
-
-    return StreamBuilder<AuthState>(
-      stream: authService.authStateChanges,
-      builder: (context, snapshot) {
-        // Use currentSession for immediate synchronous state to avoid waiting delays
-        final session = Supabase.instance.client.auth.currentSession;
-        
-        if (session != null) {
-          // Web-only: Check for a pending plan from OAuth signup flow
-          if (kIsWeb) {
-            // Clean URL query parameters to avoid loops/stuck codes
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              platform.replaceHistoryState('/app');
-            });
-
-            final pendingPlan = platform.getLocalStorageValue('pending_plan');
-            final pendingPeriod = platform.getLocalStorageValue('pending_period');
-            if (pendingPlan != null && pendingPlan.isNotEmpty) {
-              platform.removeLocalStorageValue('pending_plan');
-              platform.removeLocalStorageValue('pending_period');
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                final origin = platform.getLocationOrigin();
-                platform.setLocationHref('$origin/checkout?plan=$pendingPlan&period=${pendingPeriod ?? 'monthly'}');
-              });
-            }
-          }
-          return const MainNavigation();
-        }
-
-        // Show loading spinner only on Web when waiting. On mobile we show WelcomeScreen immediately.
-        if (snapshot.connectionState == ConnectionState.waiting && session == null && kIsWeb) {
-          return Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Loading...',
-                    style: TextStyle(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey
-                          : AppTheme.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        // Mobile fallback logic
-        if (!kIsWeb) {
-          if (_isCheckingGuest) {
-            return WelcomeScreen(
-              onLoginTap: _goToLogin,
-              onSignUpTap: _goToLogin,
-              onGoogleSignIn: () async {
-                await authService.signInWithGoogle();
-              },
-              onGuestContinue: _enterGuestMode,
-            );
-          }
-          return const MainNavigation();
-        }
-
-        // Web fallback logic
-        return const LoginScreen();
-      },
     );
   }
 }

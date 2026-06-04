@@ -802,10 +802,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.edit_note_rounded,
-                            size: 36,
-                            color: Colors.white,
+                          child: Center(
+                            child: Image.asset(
+                              'assets/images/logo_transparent.png',
+                              width: 40,
+                              height: 40,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),

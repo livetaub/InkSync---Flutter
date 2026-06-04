@@ -487,10 +487,11 @@ class HomeScreenState extends State<HomeScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ).createShader(bounds),
-            child: const Icon(
-              Icons.sync_rounded,
-              color: Colors.white,
-              size: 28,
+            blendMode: BlendMode.srcIn,
+            child: Image.asset(
+              'assets/images/logo_transparent.png',
+              width: 28,
+              height: 28,
             ),
           ),
           const SizedBox(width: 10),

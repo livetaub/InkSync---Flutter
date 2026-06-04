@@ -126,11 +126,27 @@ const TermsPage: React.FC = () => {
           </section>
 
           <section>
-            <h3>3. Data Retention & Deletion</h3>
+            <h3>3. Data Deletion & Retention Policy</h3>
             <p>
-              If you delete your notes, they are permanently removed from our active databases (and deleted from backup copies after a standard cycle). 
-              If you wish to delete your account entirely, you can request account deletion by emailing us at <a href="mailto:support@inksyncnote.com" className="email-link">support@inksyncnote.com</a>.
+              In alignment with the Google Play Developer Data Safety policies, <strong>InkSync</strong> provides users with complete control over their accounts and data deletion.
             </p>
+            
+            <h4>Account Deletion Requests</h4>
+            <p>
+              If you wish to request the deletion of your account and all associated personal data, you can do so by contacting our support team at <a href="mailto:support@inksyncnote.com" className="email-link">support@inksyncnote.com</a>.
+            </p>
+            <ul>
+              <li><strong>What is deleted:</strong> Upon account deletion, all personal data, including your registered email address, authentication records, and the contents of all your notes (text, tags, accent colors, calendar associations, and pinned states) are permanently erased from our active databases.</li>
+              <li><strong>What is retained:</strong> We may retain essential financial and transactional data (such as Stripe subscription transaction details) as required for compliance with legal, tax, or accounting regulations. No personal note contents are retained.</li>
+            </ul>
+
+            <h4>Data Deletion Without Account Deletion</h4>
+            <p>
+              You do not need to delete your entire account to remove specific data. You can delete individual notes or notebooks directly within the InkSync application.
+            </p>
+            <ul>
+              <li><strong>Notes Retention & Deletion Period:</strong> When you delete an individual note, it is moved to a trash state and will be permanently deleted from our servers and backups after a retention period of <strong>30 days</strong>. You can choose to restore the note or empty the trash to delete it immediately.</li>
+            </ul>
           </section>
 
           <section className="contact-footer">

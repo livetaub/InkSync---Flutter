@@ -475,7 +475,8 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
     return Row(mainAxisSize: MainAxisSize.min, children: [
       ShaderMask(
         shaderCallback: (b) => const LinearGradient(colors: [Color(0xFF1E88E5), Color(0xFF10D98C)]).createShader(b),
-        child: const Icon(Icons.sync_rounded, color: Colors.white, size: 28),
+        blendMode: BlendMode.srcIn,
+        child: Image.asset('assets/images/logo_transparent.png', width: 28, height: 28),
       ),
       const SizedBox(width: 8),
       const Text('InkSync', style: TextStyle(color: Color(0xFF1E293B), fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.5)),

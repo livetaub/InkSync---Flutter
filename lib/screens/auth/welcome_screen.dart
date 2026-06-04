@@ -252,10 +252,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               ),
             ],
           ),
-          child: const Icon(
-            Icons.edit_note_rounded,
-            color: Colors.white,
-            size: 40,
+          child: Center(
+            child: Image.asset(
+              'assets/images/logo_transparent.png',
+              width: 44,
+              height: 44,
+              color: Colors.white,
+            ),
           ),
         ),
         const SizedBox(height: 28),
