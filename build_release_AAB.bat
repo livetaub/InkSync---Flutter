@@ -3,12 +3,43 @@ set "JAVA_HOME=C:\Users\livet\AppData\Local\Temp\openjdk17\jdk-17.0.19+10"
 set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
 set "GRADLE_OPTS=-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 
+cd /d "c:\My Projects\InkSync"
+
+echo ========================================================
+echo   InkSync Release App Bundle (.aab) Version Manager
+echo ========================================================
+echo.
+
+:: 1. Read current version from pubspec.yaml
+for /f "tokens=2 delims=: " %%a in ('findstr /r "^version:" pubspec.yaml') do set "CURRENT_VERSION=%%a"
+
+:: 2. Split version into Name (before +) and Number (after +)
+for /f "tokens=1,2 delims=+" %%a in ("%CURRENT_VERSION%") do (
+    set "CURRENT_BUILD_NAME=%%a"
+    set "CURRENT_BUILD_NUMBER=%%b"
+)
+
+echo Current Version: %CURRENT_BUILD_NAME%
+echo Current Build Number: %CURRENT_BUILD_NUMBER%
+echo.
+
+:: 3. Prompt user for new version values
+set /p "NEW_BUILD_NAME=Enter new Version Name (e.g., 1.0.1) [Press Enter to keep %CURRENT_BUILD_NAME%]: "
+if "%NEW_BUILD_NAME%"=="" set "NEW_BUILD_NAME=%CURRENT_BUILD_NAME%"
+
+set /p "NEW_BUILD_NUMBER=Enter new Build Number (e.g., 2) [Press Enter to keep %CURRENT_BUILD_NUMBER%]: "
+if "%NEW_BUILD_NUMBER%"=="" set "NEW_BUILD_NUMBER=%CURRENT_BUILD_NUMBER%"
+
+echo.
+echo Updating pubspec.yaml to version: %NEW_BUILD_NAME%+%NEW_BUILD_NUMBER%...
+powershell -Command "(Get-Content pubspec.yaml) -replace '^version: .*', 'version: %NEW_BUILD_NAME%+%NEW_BUILD_NUMBER%' | Set-Content pubspec.yaml"
+
+echo.
 echo ========================================================
 echo   Building InkSync Release App Bundle (.aab)...
 echo ========================================================
 echo.
 
-cd /d "c:\My Projects\InkSync"
 call flutter clean
 call flutter build appbundle --release
 
