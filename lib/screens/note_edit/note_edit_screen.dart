@@ -3288,9 +3288,17 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
     return WillPopScope(
       onWillPop: () async {
-        if (_hasChanges) {
-          await _saveNote();
+        // Mobile two-step back: first exit edit mode, then close note
+        if (_isEditing && !kIsWeb) {
+          if (_hasChanges) await _saveNote();
+          setState(() {
+            _isEditing = false;
+            _titleFocusNode.unfocus();
+            _contentFocusNode.unfocus();
+          });
+          return false; // Don't pop — just exited edit mode
         }
+        if (_hasChanges) await _saveNote();
         return true;
       },
       child: Scaffold(
@@ -3785,6 +3793,16 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           color: isDark ? Colors.white : AppTheme.textPrimary,
         ),
         onPressed: () async {
+          // Mobile two-step back: first exit edit mode, then close note
+          if (_isEditing && !kIsWeb) {
+            if (_hasChanges) await _saveNote();
+            setState(() {
+              _isEditing = false;
+              _titleFocusNode.unfocus();
+              _contentFocusNode.unfocus();
+            });
+            return; // Don't pop — just exited edit mode
+          }
           final navigator = Navigator.of(context);
           if (_hasChanges) await _saveNote();
           if (mounted) navigator.pop();
