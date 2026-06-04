@@ -77,7 +77,7 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
           child: Material(
             color: Colors.transparent,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 24),
+              padding: EdgeInsets.only(bottom: 24 + MediaQuery.of(context).padding.bottom),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
