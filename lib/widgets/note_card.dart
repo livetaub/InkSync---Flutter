@@ -206,7 +206,18 @@ class _NoteCardState extends State<NoteCard> with SingleTickerProviderStateMixin
                   child: Icon(
                     Icons.lock_rounded,
                     size: 16,
-                    color: isDark ? Colors.white54 : Colors.grey,
+                    color: AppTheme.primaryColor.withValues(alpha: 0.7),
+                  ),
+                ),
+
+              // Collaboration indicator
+              if (widget.note.collaborators.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Icon(
+                    Icons.people_outline_rounded,
+                    size: 16,
+                    color: AppTheme.primaryColor.withValues(alpha: 0.7),
                   ),
                 ),
 
@@ -224,17 +235,6 @@ class _NoteCardState extends State<NoteCard> with SingleTickerProviderStateMixin
                   ),
                 ),
               ),
-
-              // Collaboration indicator
-              if (widget.note.collaborators.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Icon(
-                    Icons.people_outline_rounded,
-                    size: 16,
-                    color: isDark ? AppTheme.textMutedDark : AppTheme.textMuted,
-                  ),
-                ),
 
               // Time modified
               Padding(
@@ -317,6 +317,36 @@ class _NoteCardState extends State<NoteCard> with SingleTickerProviderStateMixin
                           children: [
                             Row(
                               children: [
+                                // Pin indicator
+                                if (widget.note.isPinned)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: Icon(
+                                      Icons.push_pin_rounded,
+                                      size: 14,
+                                      color: AppTheme.primaryColor.withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                // Lock indicator
+                                if (widget.note.isLocked)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: Icon(
+                                      Icons.lock_rounded,
+                                      size: 14,
+                                      color: AppTheme.primaryColor.withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                // Collaboration indicator
+                                if (widget.note.collaborators.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: Icon(
+                                      Icons.people_outline_rounded,
+                                      size: 14,
+                                      color: AppTheme.primaryColor.withValues(alpha: 0.7),
+                                    ),
+                                  ),
                                 Expanded(
                                   child: Text(
                                     _getDisplayTitle(),
@@ -330,24 +360,6 @@ class _NoteCardState extends State<NoteCard> with SingleTickerProviderStateMixin
                                     ),
                                   ),
                                 ),
-                                if (widget.note.isPinned)
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 8),
-                                    child: Icon(
-                                      Icons.push_pin_rounded,
-                                      size: 14,
-                                      color: AppTheme.primaryColor,
-                                    ),
-                                  ),
-                                if (widget.note.isLocked)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 8),
-                                    child: Icon(
-                                      Icons.lock_rounded,
-                                      size: 14,
-                                      color: isDark ? Colors.white54 : Colors.grey,
-                                    ),
-                                  ),
                               ],
                             ),
                             const SizedBox(height: 6),
@@ -406,12 +418,6 @@ class _NoteCardState extends State<NoteCard> with SingleTickerProviderStateMixin
           ),
         ),
         const Spacer(),
-        if (widget.note.collaborators.isNotEmpty)
-          Icon(
-            Icons.people_outline_rounded,
-            size: 14,
-            color: isDark ? AppTheme.textMutedDark : AppTheme.textMuted,
-          ),
       ],
     );
   }
