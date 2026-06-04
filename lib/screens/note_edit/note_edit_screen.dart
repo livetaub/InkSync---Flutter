@@ -4554,11 +4554,15 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                     child: child,
                   );
                 },
+                onReorderStart: (index) {
+                  HapticFeedback.lightImpact();
+                },
                 onReorder: (oldIndex, newIndex) {
                   if (oldIndex >= _checklistItems.length ||
                       newIndex > _checklistItems.length) {
                     return;
                   }
+                  HapticFeedback.mediumImpact();
                   setState(() {
                     if (newIndex > oldIndex) newIndex--;
                     final item = _checklistItems.removeAt(oldIndex);
