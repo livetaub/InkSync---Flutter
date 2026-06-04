@@ -328,6 +328,9 @@ class LocalDatabaseService {
     serverData['is_locked'] = (serverData['is_locked'] == true) ? 1 : 0;
     serverData['title_set_manually'] = (serverData['title_set_manually'] == true) ? 1 : 0;
 
+    // Ensure created_by is always populated (Supabase may not have this column)
+    serverData['created_by'] ??= serverData['user_id'];
+
     await db.insert('notes', serverData, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -558,7 +561,7 @@ class LocalDatabaseService {
       trashedAt: row['trashed_at'] as String?,
       reminderAt: row['reminder_at'] != null ? DateTime.tryParse(row['reminder_at'] as String) : null,
       collaborators: _decodeCollaborators(row['collaborators']),
-      createdBy: row['created_by'] as String? ?? row['user_id'] as String?,
+      createdBy: row['user_id'] as String? ?? row['created_by'] as String?,
       createdDate: row['created_at'] != null ? DateTime.tryParse(row['created_at'] as String) : null,
       updatedDate: row['updated_at'] != null ? DateTime.tryParse(row['updated_at'] as String) : null,
       tags: _decodeTags(row['tags']),

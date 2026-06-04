@@ -377,7 +377,11 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     final userId = authService.currentUserId;
     final email = authService.currentUserEmail;
 
-    if (_createdBy == userId) return true;
+    // Owner check: null/empty createdBy means we're the owner
+    // (consistent with _isCreator logic)
+    if (_createdBy == null || _createdBy!.isEmpty || _createdBy == userId) {
+      return true;
+    }
 
     if (email != null) {
       final matches = _collaborators.where(
