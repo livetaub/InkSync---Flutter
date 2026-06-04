@@ -353,6 +353,8 @@ class HomeScreenState extends State<HomeScreen> {
       _highlightedNoteId = note.id;
     });
     final isDesktop = MediaQuery.of(context).size.width > 800;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final isCreator = note.createdBy == null || note.createdBy!.isEmpty || note.createdBy == authService.currentUserId;
 
     showAdaptiveModal(
       context: context,
@@ -360,13 +362,18 @@ class HomeScreenState extends State<HomeScreen> {
       child: Builder(
         builder: (ctx) => _NoteContextMenu(
           note: note,
+          isCreator: isCreator,
           onPin: () {
             Navigator.pop(ctx);
             _togglePin(note);
           },
           onDelete: () {
             Navigator.pop(ctx);
-            _deleteNote(note);
+            if (isCreator) {
+              _deleteNote(note);
+            } else {
+              _leaveNote(note);
+            }
           },
           onOpen: () {
             Navigator.pop(ctx);
@@ -403,6 +410,15 @@ class HomeScreenState extends State<HomeScreen> {
     _loadData();
     if (mounted) {
       showSuccessSnackBar(context, 'Note moved to trash');
+    }
+  }
+
+  Future<void> _leaveNote(Note note) async {
+    HapticFeedback.mediumImpact();
+    // TODO: Implement leave collaboration via API
+    // For now, show a message directing to the note's collaborator settings
+    if (mounted) {
+      showSuccessSnackBar(context, 'Open the note and use the menu to leave this collaboration');
     }
   }
 
@@ -839,6 +855,7 @@ class HomeScreenState extends State<HomeScreen> {
 /// Context menu for long-press on notes
 class _NoteContextMenu extends StatelessWidget {
   final Note note;
+  final bool isCreator;
   final VoidCallback onPin;
   final VoidCallback onDelete;
   final VoidCallback onOpen;
@@ -846,6 +863,7 @@ class _NoteContextMenu extends StatelessWidget {
 
   const _NoteContextMenu({
     required this.note,
+    required this.isCreator,
     required this.onPin,
     required this.onDelete,
     required this.onOpen,
@@ -907,8 +925,8 @@ class _NoteContextMenu extends StatelessWidget {
               ),
               _buildAction(
                 context,
-                icon: Icons.delete_outline_rounded,
-                label: 'Delete',
+                icon: isCreator ? Icons.delete_outline_rounded : Icons.exit_to_app_rounded,
+                label: isCreator ? 'Delete' : 'Leave',
                 color: Colors.red,
                 onTap: onDelete,
               ),
