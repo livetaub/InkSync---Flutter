@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -31,10 +33,30 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+  StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
+    
+    if (!kIsWeb) {
+      _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+        final event = data.event;
+        if (event == AuthChangeEvent.signedIn) {
+          final provider = data.session?.user.appMetadata?['provider'];
+          final isOAuth = provider != null && provider != 'email';
+          
+          if (isOAuth) {
+            debugPrint('[INFO] LoginScreen: OAuth sign-in detected ($provider), closing webview and redirecting...');
+            await closeInAppWebView();
+            if (mounted) {
+              Navigator.pushReplacementNamed(context, '/app');
+            }
+          }
+        }
+      });
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final currentRouteName = ModalRoute.of(context)?.settings.name;
       if (currentRouteName != '/app' && currentRouteName != '/home' && Supabase.instance.client.auth.currentSession != null) {
@@ -47,6 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();

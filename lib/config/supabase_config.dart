@@ -26,4 +26,10 @@ class SupabaseConfig {
 
   /// OAuth callback URL for mobile
   static const String authCallbackUrl = '$deepLinkScheme://login-callback/';
+
+  /// Web Client ID for Google Sign-In (needed for native Android OAuth)
+  static const String googleWebClientId = '';
+
+  /// iOS Client ID for Google Sign-In (needed for native iOS OAuth)
+  static const String googleIosClientId = '';
 }

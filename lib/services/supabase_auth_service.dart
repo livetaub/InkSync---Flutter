@@ -1,6 +1,9 @@
+import 'dart:io' show Platform;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart' show LaunchMode;
+import 'package:google_sign_in/google_sign_in.dart';
+import '../config/supabase_config.dart';
 
 /// Supabase Authentication Service
 /// Replaces Firebase Auth with same interface for easy migration
@@ -66,6 +69,34 @@ class SupabaseAuthService {
   Future<AuthResponse?> signInWithGoogle() async {
     try {
       debugPrint('[INFO] Starting Google sign-in (web: $kIsWeb)');
+
+      if (!kIsWeb && SupabaseConfig.googleWebClientId.isNotEmpty) {
+        debugPrint('[INFO] Starting Native Google sign-in...');
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          clientId: Platform.isIOS ? SupabaseConfig.googleIosClientId : null,
+          serverClientId: SupabaseConfig.googleWebClientId,
+        );
+        final googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          debugPrint('[INFO] Native Google sign-in cancelled by user');
+          return null;
+        }
+        final googleAuth = await googleUser.authentication;
+        final idToken = googleAuth.idToken;
+        final accessToken = googleAuth.accessToken;
+
+        if (idToken == null) {
+          throw Exception('Failed to obtain Google ID Token.');
+        }
+
+        final response = await _client.auth.signInWithIdToken(
+          provider: OAuthProvider.google,
+          idToken: idToken,
+          accessToken: accessToken,
+        );
+        debugPrint('[INFO] Native Google sign-in completed successfully');
+        return response;
+      }
 
       if (kIsWeb) {
         // For web, use OAuth redirect with explicit callback URL

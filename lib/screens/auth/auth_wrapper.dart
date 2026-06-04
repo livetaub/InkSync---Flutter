@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart' show closeInAppWebView;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/platform_helper.dart' as platform;
@@ -66,10 +67,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final event = data.event;
 
     // Mobile: OAuth deep-link returned while WelcomeScreen is visible
-    if (!kIsWeb &&
-        event == AuthChangeEvent.signedIn &&
-        _phase == _MobilePhase.welcome) {
-      _advanceToTutorial();
+    if (!kIsWeb && event == AuthChangeEvent.signedIn) {
+      closeInAppWebView();
+      if (_phase == _MobilePhase.welcome) {
+        _advanceToTutorial();
+      }
       return;
     }
 
