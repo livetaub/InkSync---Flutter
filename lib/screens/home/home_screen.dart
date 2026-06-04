@@ -530,16 +530,22 @@ class HomeScreenState extends State<HomeScreen> {
           if (!authService.isLoggedIn)
             GestureDetector(
               onTap: () {
-                // If they tap the offline indicator, we can route them to login
-                Navigator.pushNamed(context, '/login');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Sign in to sync across your devices'),
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    duration: const Duration(seconds: 4),
+                    action: SnackBarAction(
+                      label: 'Sign in',
+                      textColor: AppTheme.primaryColor,
+                      onPressed: () => Navigator.pushNamed(context, '/login'),
+                    ),
+                  ),
+                );
               },
-              child: Row(
-                children: [
-                  Icon(Icons.cloud_off_rounded, size: 16, color: isDark ? Colors.white54 : Colors.grey),
-                  const SizedBox(width: 4),
-                  Text('Login to sync across your devices', style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.grey, fontWeight: FontWeight.w500)),
-                ],
-              ),
+              child: Icon(Icons.cloud_off_rounded, size: 18, color: isDark ? Colors.white54 : Colors.grey),
             )
           else if (widget.isSyncing)
             const SizedBox(
