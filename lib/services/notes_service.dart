@@ -270,6 +270,11 @@ class NotesService {
   final AuthService _auth;
   late final LocalNotesService _localNotesService;
 
+  /// Called after a background sync completes successfully.
+  /// Set this from the UI layer to refresh sync indicators.
+  /// Static because NotesService is created ad-hoc, not as a singleton.
+  static VoidCallback? onSyncComplete;
+
   NotesService(this._auth) {
     _localNotesService = LocalNotesService(LocalDatabaseService.instance, _auth);
   }
@@ -279,7 +284,9 @@ class NotesService {
 
   void _triggerBackgroundSync() {
     if (!kIsWeb && _userId.isNotEmpty) {
-      SyncEngine(LocalDatabaseService.instance, _auth).sync().catchError((e) {
+      SyncEngine(LocalDatabaseService.instance, _auth).sync().then((_) {
+        onSyncComplete?.call();
+      }).catchError((e) {
         debugPrint('Background sync error: $e');
       });
     }

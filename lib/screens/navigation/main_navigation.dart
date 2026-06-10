@@ -65,12 +65,24 @@ class _MainNavigationState extends State<MainNavigation> {
   void initState() {
     super.initState();
     _buildScreens();
+
+    // Refresh sync indicator after background sync completes
+    NotesService.onSyncComplete = () {
+      if (mounted) _performDataSync();
+    };
+
     if (kIsWeb) {
       _checkPendingSnapshotImport();
     } else {
       // Mobile: trigger initial sync when entering the main app
       _triggerMobileSync();
     }
+  }
+
+  @override
+  void dispose() {
+    NotesService.onSyncComplete = null;
+    super.dispose();
   }
 
   /// Mobile: initial sync + subscription setup on app launch
