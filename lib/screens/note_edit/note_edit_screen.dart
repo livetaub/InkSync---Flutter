@@ -5089,9 +5089,13 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
                             size: 48,
                           ),
                           const SizedBox(height: 12),
-                          Text(
-                            'Error processing text',
-                            style: TextStyle(color: Colors.red.shade700),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Text(
+                              _error!.replaceAll('Exception: ', ''),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.red.shade700),
+                            ),
                           ),
                         ],
                       ),
