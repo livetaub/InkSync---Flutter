@@ -3409,6 +3409,11 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                             focusNode: _titleFocusNode,
                             readOnly: !_isEditing || !_canUserEdit,
                             autofocus: false,
+                            contextMenuBuilder: (context, editableTextState) {
+                              return AdaptiveTextSelectionToolbar.editableText(
+                                editableTextState: editableTextState,
+                              );
+                            },
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -3840,6 +3845,11 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                       focusNode: _titleFocusNode,
                       readOnly: !_isEditing || !_canUserEdit,
                       autofocus: false,
+                      contextMenuBuilder: (context, editableTextState) {
+                        return AdaptiveTextSelectionToolbar.editableText(
+                          editableTextState: editableTextState,
+                        );
+                      },
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
@@ -4494,6 +4504,11 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                             focusNode: _contentFocusNode,
                             readOnly: !_isEditing || !_canUserEdit,
                             autofocus: _isEditing && widget.note == null,
+                            contextMenuBuilder: (context, editableTextState) {
+                              return AdaptiveTextSelectionToolbar.editableText(
+                                editableTextState: editableTextState,
+                              );
+                            },
                             style: textStyle,
                             strutStyle: strutStyle,
                             decoration: InputDecoration(
@@ -4659,6 +4674,11 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                                 controller: _checklistControllers[index],
                                 focusNode: _checklistFocusNodes[index],
                                 readOnly: !_canUserEdit,
+                                contextMenuBuilder: (context, editableTextState) {
+                                  return AdaptiveTextSelectionToolbar.editableText(
+                                    editableTextState: editableTextState,
+                                  );
+                                },
                                 decoration: const InputDecoration(
                                   hintText: 'List item',
                                   border: InputBorder.none,
