@@ -161,6 +161,39 @@ class HomeScreenState extends State<HomeScreen> {
         debugPrint('Error loading tags: $tagError');
       }
 
+      // Auto-repair: create tag definitions for tags used in notes but missing
+      // from the definitions table (e.g. after data wipe + re-sync).
+      try {
+        final existingTagNames = tags.map((t) => t.name.toLowerCase()).toSet();
+        final missingTagNames = <String>{};
+        final noteTypeForTags = widget.noteTypeFilter ?? 'text';
+
+        for (final note in notes) {
+          // Only check notes matching the current type filter
+          if (widget.noteTypeFilter != null && note.type != widget.noteTypeFilter) continue;
+          for (final tagName in note.tags) {
+            if (tagName.isNotEmpty && !existingTagNames.contains(tagName.toLowerCase())) {
+              missingTagNames.add(tagName);
+            }
+          }
+        }
+
+        if (missingTagNames.isNotEmpty) {
+          debugPrint('Auto-repairing ${missingTagNames.length} missing tag definitions: $missingTagNames');
+          for (final tagName in missingTagNames) {
+            await tagService.createTag(tagName, type: noteTypeForTags);
+          }
+          // Re-fetch tags to include the newly created definitions
+          if (widget.noteTypeFilter != null) {
+            tags = await tagService.getTagsByType(widget.noteTypeFilter!);
+          } else {
+            tags = await tagService.getTags();
+          }
+        }
+      } catch (e) {
+        debugPrint('Error auto-repairing tags: $e');
+      }
+
       bool hasPending = false;
       if (!kIsWeb) {
         final pendingNotes = await LocalDatabaseService.instance.getPendingNotes();
