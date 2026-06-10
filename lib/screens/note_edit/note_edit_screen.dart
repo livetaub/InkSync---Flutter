@@ -3146,7 +3146,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   /// Copy note text to clipboard
   void _copyNoteText() {
     String textToCopy;
-    final title = _titleController.text;
+    final title = _titleController.text.trim();
 
     if (_noteType == 'checklist') {
       final itemsText = _checklistItems.map((item) {
@@ -3155,7 +3155,12 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
       textToCopy = title.isNotEmpty ? '$title\n\n$itemsText' : itemsText;
     } else {
       final content = _contentController.text;
-      textToCopy = title.isNotEmpty ? '$title\n\n$content' : content;
+      final firstLine = content.split('\n').first.trim();
+      // Skip title if it duplicates the first line of content
+      final titleDuplicatesContent = title.isNotEmpty && title == firstLine;
+      textToCopy = (title.isNotEmpty && !titleDuplicatesContent)
+          ? '$title\n\n$content'
+          : content;
     }
 
     Clipboard.setData(ClipboardData(text: textToCopy));
