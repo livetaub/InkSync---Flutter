@@ -18,6 +18,7 @@ import '../note_edit/note_edit_screen.dart';
 import '../trash/trash_screen.dart';
 import '../../widgets/main_menu_sheet.dart';
 import '../../widgets/web_sidebar.dart';
+import '../../widgets/auth_dialogs.dart';
 
 /// MainNavigation - Bottom navigation with all main screens
 class MainNavigation extends StatefulWidget {
@@ -76,8 +77,21 @@ class _MainNavigationState extends State<MainNavigation> {
   Future<void> _triggerMobileSync() async {
     final authService = Provider.of<AuthService>(context, listen: false);
     if (authService.isLoggedIn && authService.currentUserId != null) {
-      // Migrate guest notes/tags to the authenticated user ID
-      await LocalDatabaseService.instance.migrateGuestData(authService.currentUserId!);
+      final userId = authService.currentUserId!;
+
+      // Check for guest notes before migration
+      final guestCount = await LocalDatabaseService.instance.getGuestNoteCount();
+
+      if (guestCount > 0 && mounted) {
+        // Show import dialog
+        final choice = await showGuestImportDialog(context, guestCount);
+
+        if (choice == GuestImportChoice.importNotes) {
+          // Migrate guest notes to the authenticated user
+          await LocalDatabaseService.instance.migrateGuestData(userId);
+        }
+        // If skip or dismissed: leave guest notes as-is (won't sync)
+      }
 
       // Initialize RevenueCat with the authenticated user
       final subService = SubscriptionService.instance;

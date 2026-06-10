@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../config/theme.dart';
 import '../services/auth_service.dart';
+import '../services/local_database_service.dart';
+import '../screens/auth/login_screen.dart';
+import 'auth_dialogs.dart';
 
 import '../screens/help/help_screen.dart';
 import '../screens/trash/trash_screen.dart';
@@ -297,9 +301,17 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                       titleColor: Colors.redAccent,
                       onTap: () async {
                         Navigator.pop(context);
+                        if (!kIsWeb) {
+                          final confirmed = await showLogoutConfirmDialog(context);
+                          if (!confirmed) return;
+                          await LocalDatabaseService.instance.wipeAllData();
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.remove('has_seen_onboarding');
+                          await prefs.remove('is_guest_mode');
+                        }
                         await authService.signOut();
                         if (context.mounted) {
-                          Navigator.pushNamedAndRemoveUntil(context, '/login', (r) => false);
+                          Navigator.pushNamedAndRemoveUntil(context, '/app', (r) => false);
                         }
                       },
                     )
@@ -311,11 +323,11 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                       iconColor: AppTheme.primaryColor,
                       onTap: () async {
                         Navigator.pop(context);
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.remove('has_seen_onboarding');
-                        await prefs.remove('is_guest_mode');
                         if (context.mounted) {
-                          Navigator.pushNamedAndRemoveUntil(context, '/app', (r) => false);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          );
                         }
                       },
                     ),

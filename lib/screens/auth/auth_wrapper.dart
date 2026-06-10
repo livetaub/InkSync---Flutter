@@ -69,6 +69,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
     // Mobile: OAuth deep-link returned while WelcomeScreen is visible
     if (!kIsWeb && event == AuthChangeEvent.signedIn) {
       closeInAppWebView();
+      // Clear guest mode flag on sign-in
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.remove('is_guest_mode');
+      });
       if (_phase == _MobilePhase.welcome) {
         _advanceToTutorial();
       }

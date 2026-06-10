@@ -541,6 +541,25 @@ class LocalDatabaseService {
     return count;
   }
 
+  /// Count notes that belong to guest (no user_id)
+  Future<int> getGuestNoteCount() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      "SELECT COUNT(*) as count FROM notes WHERE user_id IS NULL OR user_id = ''",
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// Wipe all local data (called on logout)
+  Future<void> wipeAllData() async {
+    final db = await database;
+    await db.delete('notes');
+    await db.delete('tags');
+    await db.delete('user_settings');
+    await db.delete('sync_meta');
+    debugPrint('LocalDB: All local data wiped');
+  }
+
   // ===========================================================
   // Helpers
   // ===========================================================
