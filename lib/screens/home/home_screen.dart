@@ -560,36 +560,38 @@ class HomeScreenState extends State<HomeScreen> {
           ),
           const Spacer(),
           // Sync Indicator
-          if (!authService.isLoggedIn)
-            GestureDetector(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Sign in to sync across your devices'),
-                    behavior: SnackBarBehavior.floating,
-                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    duration: const Duration(seconds: 4),
-                    action: SnackBarAction(
-                      label: 'Sign in',
-                      textColor: AppTheme.primaryColor,
-                      onPressed: () => Navigator.pushNamed(context, '/login'),
+          if (!kIsWeb) ...[
+            if (!authService.isLoggedIn)
+              GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Sign in to sync across your devices'),
+                      behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      duration: const Duration(seconds: 4),
+                      action: SnackBarAction(
+                        label: 'Sign in',
+                        textColor: AppTheme.primaryColor,
+                        onPressed: () => Navigator.pushNamed(context, '/login'),
+                      ),
                     ),
-                  ),
-                );
-              },
-              child: Icon(Icons.cloud_off_rounded, size: 18, color: isDark ? Colors.white54 : Colors.grey),
-            )
-          else if (widget.isSyncing)
-            const SizedBox(
-              width: 14, 
-              height: 14, 
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryColor)
-            )
-          else if (_hasUnsyncedChanges)
-            Icon(Icons.sync_problem_rounded, size: 18, color: isDark ? Colors.white54 : Colors.grey)
-          else
-            const Icon(Icons.cloud_done_rounded, size: 18, color: Colors.green),
+                  );
+                },
+                child: Icon(Icons.cloud_off_rounded, size: 18, color: isDark ? Colors.white54 : Colors.grey),
+              )
+            else if (widget.isSyncing)
+              const SizedBox(
+                width: 14, 
+                height: 14, 
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryColor)
+              )
+            else if (_hasUnsyncedChanges)
+              Icon(Icons.sync_problem_rounded, size: 18, color: isDark ? Colors.white54 : Colors.grey)
+            else
+              const Icon(Icons.cloud_done_rounded, size: 18, color: Colors.green),
+          ],
         ],
       ),
     );

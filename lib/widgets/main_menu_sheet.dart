@@ -167,51 +167,53 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                       }
                     },
                   ),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.sync_rounded,
-                    title: _isSyncing ? 'Syncing...' : 'Sync Now',
-                    trailing: _lastSyncAt != null && !_isSyncing
-                        ? Text(
-                            'Updated ${_formatSyncTime(_lastSyncAt!)}',
-                            style: TextStyle(
-                              color: isDark ? Colors.white54 : Colors.black54,
-                              fontSize: 11,
-                            ),
-                          )
-                        : (_isSyncing
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : null),
-                    onTap: () async {
-                      if (_isSyncing) return;
-                      setState(() => _isSyncing = true);
-                      
-                      try {
-                        if (widget.onDataChanged != null) {
-                          await widget.onDataChanged!();
-                        } else {
-                          await Future.delayed(const Duration(milliseconds: 500));
+                  if (!kIsWeb) ...[
+                    _buildMenuItem(
+                      context,
+                      icon: Icons.sync_rounded,
+                      title: _isSyncing ? 'Syncing...' : 'Sync Now',
+                      trailing: _lastSyncAt != null && !_isSyncing
+                          ? Text(
+                              'Updated ${_formatSyncTime(_lastSyncAt!)}',
+                              style: TextStyle(
+                                color: isDark ? Colors.white54 : Colors.black54,
+                                fontSize: 11,
+                              ),
+                            )
+                          : (_isSyncing
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : null),
+                      onTap: () async {
+                        if (_isSyncing) return;
+                        setState(() => _isSyncing = true);
+                        
+                        try {
+                          if (widget.onDataChanged != null) {
+                            await widget.onDataChanged!();
+                          } else {
+                            await Future.delayed(const Duration(milliseconds: 500));
+                          }
+                          if (mounted) {
+                            setState(() {
+                              _isSyncing = false;
+                              _lastSyncAt = DateTime.now();
+                            });
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            setState(() => _isSyncing = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Sync failed: $e')),
+                            );
+                          }
                         }
-                        if (mounted) {
-                          setState(() {
-                            _isSyncing = false;
-                            _lastSyncAt = DateTime.now();
-                          });
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          setState(() => _isSyncing = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Sync failed: $e')),
-                          );
-                        }
-                      }
-                    },
-                  ),
+                      },
+                    ),
+                  ],
                   const Divider(height: 16, indent: 16, endIndent: 16),
                   _buildMenuItem(
                     context,

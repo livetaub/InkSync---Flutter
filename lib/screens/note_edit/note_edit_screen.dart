@@ -599,7 +599,18 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     } catch (e) {
       setState(() => _isSaving = false);
       if (mounted) {
-        showErrorSnackBar(context, 'Error saving: $e');
+        final errorStr = e.toString().toLowerCase();
+        if (errorStr.contains('socketexception') ||
+            errorStr.contains('failed host lookup') ||
+            errorStr.contains('network') ||
+            errorStr.contains('connection') ||
+            errorStr.contains('handshake') ||
+            errorStr.contains('xmlhttprequest') ||
+            errorStr.contains('http status error [0]')) {
+          showErrorSnackBar(context, 'Note not saved. Please check your internet connection.');
+        } else {
+          showErrorSnackBar(context, 'Error saving: $e');
+        }
       }
     }
   }

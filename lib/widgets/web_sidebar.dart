@@ -256,22 +256,7 @@ class _WebSidebarState extends State<WebSidebar> {
             child: const PendingInvitesScreen(isDialog: true),
           ),
         ),
-        _buildMenuSubItem(
-          Icons.sync_rounded,
-          widget.isSyncing ? 'Syncing...' : 'Sync Now',
-          null,
-          () {
-            if (!widget.isSyncing) widget.onSync();
-          },
-          trailing: widget.lastSyncAt != null && !widget.isSyncing
-              ? Text(
-                  'Updated ${_formatSyncTime(widget.lastSyncAt!)}',
-                  style: const TextStyle(color: Colors.white38, fontSize: 11),
-                )
-              : (widget.isSyncing 
-                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54)) 
-                  : null),
-        ),
+
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 28, vertical: 8),
           child: Divider(color: Colors.white12, height: 1),
@@ -351,14 +336,7 @@ class _WebSidebarState extends State<WebSidebar> {
     );
   }
 
-  String _formatSyncTime(DateTime time) {
-    final now = DateTime.now();
-    final diff = now.difference(time);
-    if (diff.inSeconds < 60) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
+
 
   Widget _buildMenuSubItem(
     IconData icon,
