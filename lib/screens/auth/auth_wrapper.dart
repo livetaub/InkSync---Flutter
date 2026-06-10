@@ -79,6 +79,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return;
     }
 
+    // Mobile: Reactively transition back to welcome phase when signed out
+    if (!kIsWeb && event == AuthChangeEvent.signedOut) {
+      if (mounted) {
+        setState(() {
+          _phase = _MobilePhase.welcome;
+        });
+      }
+      return;
+    }
+
     // Both platforms: password recovery flow
     if (event == AuthChangeEvent.passwordRecovery) {
       _handlePasswordRecovery();

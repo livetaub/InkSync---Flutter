@@ -129,6 +129,16 @@ class SupabaseAuthService {
   /// Sign out
   Future<void> signOut() async {
     try {
+      if (!kIsWeb) {
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          clientId: Platform.isIOS ? SupabaseConfig.googleIosClientId : null,
+          serverClientId: SupabaseConfig.googleWebClientId,
+        );
+        if (await googleSignIn.isSignedIn()) {
+          await googleSignIn.signOut();
+          debugPrint('[INFO] Native Google sign-out successful');
+        }
+      }
       await _client.auth.signOut();
       debugPrint('[INFO] User signed out');
     } catch (e, stack) {
