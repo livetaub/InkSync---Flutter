@@ -4679,6 +4679,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                                 controller: _checklistControllers[index],
                                 focusNode: _checklistFocusNodes[index],
                                 readOnly: !_canUserEdit,
+                                maxLines: null,
+                                minLines: 1,
                                 contextMenuBuilder: (context, editableTextState) {
                                   return AdaptiveTextSelectionToolbar.editableText(
                                     editableTextState: editableTextState,
