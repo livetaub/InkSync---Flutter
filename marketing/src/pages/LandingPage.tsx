@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Shield, Sparkles, Users, Zap, ArrowRight, Monitor, RefreshCw, CalendarDays, CheckSquare, PenTool } from 'lucide-react';
+import { Shield, Users, Zap, ArrowRight, Monitor, RefreshCw, CalendarDays, CheckSquare, PenTool } from 'lucide-react';
 import './LandingPage.css';
 
 const TESTIMONIALS = [
@@ -89,18 +89,19 @@ const LandingPage = () => {
           </p>
           
           <div className="platform-icons">
-            <div className="platform-icon">
+            <a href={APP_URL} className="platform-icon" target="_blank" rel="noopener noreferrer">
               <Monitor size={24} />
               <span>Web</span>
-            </div>
-            <div className="platform-icon">
+            </a>
+            <div className="platform-icon has-tooltip" onClick={() => alert('iOS app coming soon!')}>
               <AppleLogo size={24} />
               <span>Apple</span>
+              <span className="platform-tooltip">Coming soon</span>
             </div>
-            <div className="platform-icon">
+            <a href={PLAY_STORE_URL} className="platform-icon" target="_blank" rel="noopener noreferrer">
               <AndroidLogo size={24} />
               <span>Android</span>
-            </div>
+            </a>
           </div>
           
           <div className="hero-actions">
