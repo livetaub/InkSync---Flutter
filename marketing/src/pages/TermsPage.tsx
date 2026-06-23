@@ -51,7 +51,7 @@ const TermsPage: React.FC = () => {
           <section>
             <h3>3. Subscription Pricing & Tier Modification</h3>
             <p>
-              We reserve the right to adjust subscription pricing, features, limits, or benefits associated with subscription tiers (Free, Premium, Premium Pro) at our sole discretion:
+              We reserve the right to adjust subscription pricing, features, limits, or benefits associated with subscription tiers (Free, Premium) at our sole discretion:
             </p>
             <ul>
               <li>Pricing adjustments will take effect at the start of the next billing cycle after the change is made.</li>

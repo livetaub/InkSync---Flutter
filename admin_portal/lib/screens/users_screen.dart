@@ -90,19 +90,17 @@ class _UsersScreenState extends State<UsersScreen> {
           valA = a['billing_cycle']; valB = b['billing_cycle']; break;
         case 5: // LTV
           valA = (a['lifetime_value'] ?? 0).toDouble(); valB = (b['lifetime_value'] ?? 0).toDouble(); break;
-        case 6: // Locked Monthly
-          valA = (a['locked_monthly_price'] ?? 0).toDouble(); valB = (b['locked_monthly_price'] ?? 0).toDouble(); break;
-        case 7: // Locked Yearly
-          valA = (a['locked_yearly_price'] ?? 0).toDouble(); valB = (b['locked_yearly_price'] ?? 0).toDouble(); break;
-        case 8: // AI Used
+        case 6: // AI Credits
           valA = a['ai_credits_used'] ?? 0; valB = b['ai_credits_used'] ?? 0; break;
-        case 9: // Notes Count
+        case 7: // AI Cost
+          valA = _calcAiCost(a); valB = _calcAiCost(b); break;
+        case 8: // Notes Count
           valA = a['cached_notes_count'] ?? 0; valB = b['cached_notes_count'] ?? 0; break;
-        case 10: // Storage Bytes
+        case 9: // Storage Bytes
           valA = a['cached_storage_bytes'] ?? 0; valB = b['cached_storage_bytes'] ?? 0; break;
-        case 11: // Last Active
+        case 10: // Last Active
           valA = a['last_active_at'] ?? ''; valB = b['last_active_at'] ?? ''; break;
-        case 12: // Created At
+        case 11: // Created At
           valA = a['created_at'] ?? ''; valB = b['created_at'] ?? ''; break;
         default:
           valA = ''; valB = '';
@@ -154,88 +152,57 @@ class _UsersScreenState extends State<UsersScreen> {
     return '${(b / 1048576).toStringAsFixed(2)} MB';
   }
 
-  Future<void> _grantFreePro(String userId) async {
+  /// Calculate estimated AI cost from tracked token usage
+  double _calcAiCost(Map<String, dynamic> user) {
+    final inputTokens = (user['ai_input_tokens'] ?? 0) as num;
+    final outputTokens = (user['ai_output_tokens'] ?? 0) as num;
+    // Gemini 2.5 Flash pricing: $0.15/1M input, $0.60/1M output
+    return (inputTokens.toDouble() * 0.00000015) + (outputTokens.toDouble() * 0.0000006);
+  }
+
+  Future<void> _grantPremiumFree(String userId) async {
     try {
       await Supabase.instance.client.from('profiles').update({
-        'account_type': 'premium_pro',
-        'locked_monthly_price': 0.00,
-        'locked_yearly_price': 0.00,
+        'account_type': 'premium_free',
       }).eq('id', userId);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Granted Free Pro Status!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Granted Premium Free access!'), backgroundColor: Colors.green));
         _fetchUsers();
       }
     } catch (e) {
-      debugPrint('[UsersScreen] Error granting free pro: $e');
+      debugPrint('[UsersScreen] Error granting premium free: $e');
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('An error occurred. Please try again.'), backgroundColor: Colors.red));
     }
   }
 
-  Future<void> _showCustomPricingDialog(Map<String, dynamic> user) async {
-    final monthlyCtrl = TextEditingController(text: (user['locked_monthly_price'] ?? 0).toString());
-    final yearlyCtrl = TextEditingController(text: (user['locked_yearly_price'] ?? 0).toString());
-    String selectedPlan = user['account_type'] ?? 'free';
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('Custom Pricing for ${user['email']}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                value: selectedPlan,
-                decoration: const InputDecoration(labelText: 'Account Type', border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'free', child: Text('Free')),
-                  DropdownMenuItem(value: 'premium', child: Text('Premium')),
-                  DropdownMenuItem(value: 'premium_pro', child: Text('Premium Pro')),
-                ],
-                onChanged: (val) {
-                  setDialogState(() => selectedPlan = val ?? 'free');
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: monthlyCtrl,
-                decoration: const InputDecoration(labelText: 'Locked Monthly Price (\$)', border: OutlineInputBorder()),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: yearlyCtrl,
-                decoration: const InputDecoration(labelText: 'Locked Yearly Price (\$)', border: OutlineInputBorder()),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  await Supabase.instance.client.from('profiles').update({
-                    'account_type': selectedPlan,
-                    'locked_monthly_price': double.tryParse(monthlyCtrl.text) ?? 0.0,
-                    'locked_yearly_price': double.tryParse(yearlyCtrl.text) ?? 0.0,
-                  }).eq('id', user['id']);
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                    scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Custom Pricing Saved!'), backgroundColor: Colors.green));
-                    _fetchUsers();
-                  }
-                } catch (e) {
-                  debugPrint('[UsersScreen] Error saving custom pricing: $e');
-                  scaffoldMessenger.showSnackBar(const SnackBar(content: Text('An error occurred. Please try again.'), backgroundColor: Colors.red));
-                }
-              },
-              child: const Text('Save Custom Pricing'),
-            ),
-          ],
-        ),
+  Widget _planBadge(String? accountType) {
+    final type = accountType ?? 'free';
+    Color color;
+    String label;
+    switch (type) {
+      case 'premium_free':
+        color = const Color(0xFF8B5CF6); // Purple
+        label = 'PREMIUM FREE';
+        break;
+      case 'premium':
+        color = const Color(0xFF3B82F6); // Blue
+        label = 'PREMIUM';
+        break;
+      default:
+        color = const Color(0xFF94A3B8); // Grey
+        label = 'FREE';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
       ),
     );
   }
@@ -308,7 +275,7 @@ class _UsersScreenState extends State<UsersScreen> {
                                   headingRowHeight: 48,
                                   headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
                                   border: TableBorder.all(color: Colors.grey.shade200, width: 1),
-                                  columns: [
+                                   columns: [
                                     DataColumn(label: const Text('Actions')),
                                     DataColumn(label: const Text('UUID (Short)'), onSort: _onSort),
                                     DataColumn(label: const Text('Email'), onSort: _onSort),
@@ -316,9 +283,8 @@ class _UsersScreenState extends State<UsersScreen> {
                                     DataColumn(label: const Text('Plan'), onSort: _onSort),
                                     DataColumn(label: const Text('Cycle'), onSort: _onSort),
                                     DataColumn(label: const Text('LTV'), numeric: true, onSort: _onSort),
-                                    DataColumn(label: const Text('Lock M. (\$)'), numeric: true, onSort: _onSort),
-                                    DataColumn(label: const Text('Lock Y. (\$)'), numeric: true, onSort: _onSort),
-                                    DataColumn(label: const Text('AI Used'), numeric: true, onSort: _onSort),
+                                    DataColumn(label: const Tooltip(message: 'Lifetime AI writing assist invocations', child: Text('AI Credits')), numeric: true, onSort: _onSort),
+                                    DataColumn(label: const Tooltip(message: 'Estimated cost based on actual token usage', child: Text('AI Cost')), numeric: true, onSort: _onSort),
                                     DataColumn(label: const Text('Notes'), numeric: true, onSort: _onSort),
                                     DataColumn(label: const Text('Storage'), numeric: true, onSort: _onSort),
                                     DataColumn(label: const Text('Last Active'), onSort: _onSort),
@@ -331,24 +297,21 @@ class _UsersScreenState extends State<UsersScreen> {
                                       PopupMenuButton<String>(
                                         icon: const Icon(Icons.more_vert_rounded, size: 20),
                                         onSelected: (val) {
-                                          if (val == 'free_pro') _grantFreePro(user['id']);
-                                          if (val == 'custom_pricing') _showCustomPricingDialog(user);
+                                          if (val == 'premium_free') _grantPremiumFree(user['id']);
                                         },
                                         itemBuilder: (ctx) => [
-                                          const PopupMenuItem(value: 'free_pro', child: Text('Grant Free Pro')),
-                                          const PopupMenuItem(value: 'custom_pricing', child: Text('Custom Pricing...')),
+                                          const PopupMenuItem(value: 'premium_free', child: Text('Grant Premium Free')),
                                         ],
                                       )
                                     ),
                                     DataCell(Text(shortId, style: const TextStyle(fontFamily: 'monospace', color: Colors.grey))),
                                     DataCell(SelectableText(user['email'] ?? 'Unknown')),
                                     DataCell(Text(user['account_status'] ?? 'N/A')),
-                                    DataCell(Text((user['account_type'] ?? 'N/A').toString().toUpperCase())),
+                                    DataCell(_planBadge(user['account_type'])),
                                     DataCell(Text(user['billing_cycle'] ?? 'N/A')),
                                     DataCell(Text(_formatCurrency(user['lifetime_value']))),
-                                    DataCell(Text(_formatCurrency(user['locked_monthly_price']))),
-                                    DataCell(Text(_formatCurrency(user['locked_yearly_price']))),
                                     DataCell(Text('${user['ai_credits_used'] ?? 0}')),
+                                    DataCell(Text(_formatCurrency(_calcAiCost(user)))),
                                     DataCell(Text('${user['cached_notes_count'] ?? 0}')),
                                     DataCell(Text(_formatBytes(user['cached_storage_bytes']))),
                                     DataCell(Text(_formatDate(user['last_active_at']))),

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:helploop_sdk/helploop_sdk.dart';
 import 'config/theme.dart';
 import 'config/supabase_config.dart';
 import 'providers/theme_provider.dart';
@@ -39,6 +40,32 @@ void main() async {
       authFlowType: AuthFlowType.pkce,
     ),
   );
+
+  // Initialize HelpLoop
+  await HelpLoop.initialize(
+    projectId: '9773e382-5e44-4c64-b64e-4da37f93164d',
+    apiKey: 'pk_live_ae92a406477da2342015cb8c941821a8e9afe7c751c6e615cd3db16c4bdf2413',
+    apiUrl: 'https://bwnrvdgonsqffiflcbem.supabase.co/functions/v1/helploop',
+  );
+
+  // Sync authentication state with HelpLoop
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+    final user = data.session?.user;
+    if (user != null) {
+      await HelpLoop.identify(
+        externalId: user.email ?? user.id,
+        identifierType: 'email',
+        email: user.email,
+        name: user.userMetadata?['name']?.toString() ?? user.email?.split('@').first,
+        metadata: {
+          'plan': user.userMetadata?['plan']?.toString() ?? 'free',
+        },
+      );
+    } else {
+      await HelpLoop.logout();
+      await HelpLoop.identifyAnonymous();
+    }
+  });
 
   // Mobile-only: Initialize local database, notifications, and subscriptions
   if (!kIsWeb) {
@@ -137,9 +164,8 @@ class InkSyncApp extends StatelessWidget {
       case '/login':
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       case '/register':
-        final plan = uri.queryParameters['plan'];
         return MaterialPageRoute(
-          builder: (_) => LoginScreen(showRegisterDialog: true, initialPlan: plan),
+          builder: (_) => const LoginScreen(),
         );
       case '/checkout-success':
         return MaterialPageRoute(builder: (_) => const CheckoutSuccessScreen());

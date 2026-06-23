@@ -6,7 +6,8 @@ import 'theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/users_screen.dart';
-import 'screens/pricing_screen.dart';
+import 'screens/paywall_screen.dart';
+import 'screens/paywall_editor_screen.dart';
 import 'screens/reports_screen.dart';
 
 Future<void> main() async {
@@ -37,7 +38,7 @@ final _router = GoRouter(
         final adminCheck = await Supabase.instance.client
             .from('admin_users')
             .select('id')
-            .eq('user_id', session.user.id)
+            .eq('id', session.user.id)
             .maybeSingle();
         if (adminCheck == null) {
           await Supabase.instance.client.auth.signOut();
@@ -65,8 +66,18 @@ final _router = GoRouter(
       builder: (context, state) => const UsersScreen(),
     ),
     GoRoute(
-      path: '/pricing',
-      builder: (context, state) => const PricingScreen(),
+      path: '/paywall',
+      builder: (context, state) => const PaywallScreen(),
+    ),
+    GoRoute(
+      path: '/paywall/new',
+      builder: (context, state) => const PaywallEditorScreen(),
+    ),
+    GoRoute(
+      path: '/paywall/edit/:id',
+      builder: (context, state) => PaywallEditorScreen(
+        variantId: state.pathParameters['id'],
+      ),
     ),
     GoRoute(
       path: '/reports',

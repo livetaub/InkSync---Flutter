@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Shield, Sparkles, Users, Zap, ArrowRight, RefreshCw, Monitor } from 'lucide-react';
+import { Shield, Sparkles, Users, Zap, ArrowRight, Monitor } from 'lucide-react';
 import './LandingPage.css';
 
 const TESTIMONIALS = [
@@ -98,9 +98,6 @@ const LandingPage = () => {
           <div className="hero-actions">
             <a href={`${APP_URL}/register`} className="btn-primary btn-large">
               Start Free — No Credit Card <ArrowRight size={18} />
-            </a>
-            <a href="/pricing" className="btn-outline btn-large">
-              View Pricing
             </a>
           </div>
           <p className="hero-disclaimer">Free forever • No credit card required</p>
@@ -210,7 +207,6 @@ const LandingPage = () => {
             <span className="brand-text">InkSync</span>
           </div>
           <div className="footer-links">
-            <a href="/pricing">Pricing</a>
             <a href={`${APP_URL}/login`}>Sign In</a>
           </div>
         </div>

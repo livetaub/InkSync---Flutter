@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:helploop_sdk/helploop_sdk.dart';
 import '../../config/theme.dart';
 import '../../utils/ui_helper.dart';
 import '../tutorial/tutorial_screen.dart';
@@ -24,7 +25,7 @@ class HelpScreen extends StatelessWidget {
                 const SizedBox(width: 48),
                 Expanded(
                   child: Text(
-                    'Help & Feedback',
+                    'Help',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 18,
@@ -69,30 +70,7 @@ class HelpScreen extends StatelessWidget {
                   },
                   isDark: isDark,
                 ),
-                _buildActionTile(
-                  context,
-                  icon: Icons.email_outlined,
-                  title: 'Contact Support',
-                  subtitle: 'Send us an email',
-                  onTap: () => _launchEmail(),
-                  isDark: isDark,
-                ),
-                _buildActionTile(
-                  context,
-                  icon: Icons.bug_report_outlined,
-                  title: 'Report a Bug',
-                  subtitle: 'Help us improve',
-                  onTap: () => _showFeedbackDialog(context, 'Bug Report'),
-                  isDark: isDark,
-                ),
-                _buildActionTile(
-                  context,
-                  icon: Icons.lightbulb_outline,
-                  title: 'Suggest a Feature',
-                  subtitle: 'We love new ideas',
-                  onTap: () => _showFeedbackDialog(context, 'Feature Request'),
-                  isDark: isDark,
-                ),
+
                 _buildActionTile(
                   context,
                   icon: Icons.description_outlined,
@@ -241,7 +219,7 @@ class HelpScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Help & Feedback',
+          'Help',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -365,56 +343,5 @@ class HelpScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _launchEmail() async {
-    final uri = Uri.parse('mailto:support@inksync.app?subject=InkSync Support');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
 
-  void _showFeedbackDialog(BuildContext context, String type) {
-    final controller = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(type),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              type == 'Bug Report'
-                  ? 'Please describe the issue you encountered:'
-                  : 'Please describe your idea:',
-              style: const TextStyle(color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                hintText: 'Enter your feedback...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Thank you for your feedback!')),
-              );
-            },
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
-    );
-  }
 }

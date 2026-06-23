@@ -26,12 +26,6 @@ class _PricingScreenState extends State<PricingScreen> {
       'notes_limit': TextEditingController(),
       'ai_credits_limit': TextEditingController(),
     },
-    'premium_pro': {
-      'price_monthly': TextEditingController(),
-      'price_yearly': TextEditingController(),
-      'notes_limit': TextEditingController(),
-      'ai_credits_limit': TextEditingController(),
-    },
   };
 
   @override
@@ -127,13 +121,6 @@ class _PricingScreenState extends State<PricingScreen> {
           'notes_limit': int.tryParse(_controllers['premium']!['notes_limit']!.text) ?? 250,
           'ai_credits_limit': int.tryParse(_controllers['premium']!['ai_credits_limit']!.text) ?? 100,
         },
-        {
-          'plan_id': 'premium_pro',
-          'price_monthly': double.tryParse(_controllers['premium_pro']!['price_monthly']!.text) ?? 9.99,
-          'price_yearly': double.tryParse(_controllers['premium_pro']!['price_yearly']!.text) ?? 99.99,
-          'notes_limit': int.tryParse(_controllers['premium_pro']!['notes_limit']!.text) ?? 500,
-          'ai_credits_limit': int.tryParse(_controllers['premium_pro']!['ai_credits_limit']!.text) ?? 200,
-        }
       ];
 
       for (var update in updates) {
@@ -232,8 +219,6 @@ class _PricingScreenState extends State<PricingScreen> {
                   _planColumn('Free', 'free', false),
                   const SizedBox(width: 24),
                   _planColumn('Premium', 'premium', true),
-                  const SizedBox(width: 24),
-                  _planColumn('Premium Pro', 'premium_pro', true),
                 ],
               )
             ],

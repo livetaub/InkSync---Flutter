@@ -12,6 +12,7 @@ import '../../services/auth_service.dart';
 import '../../services/calendar_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/tag_service.dart';
+import '../../services/paywall_service.dart';
 import '../../config/theme.dart';
 import '../subscription/mobile_paywall_screen.dart';
 import '../../providers/selection_provider.dart';
@@ -87,6 +88,15 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   final List<TextEditingController> _checklistControllers = [];
   int _lastContentTapTime = 0;
 
+  // Web mobile copy/paste toolbar state — ValueNotifier avoids rebuilding
+  // the TextField when the toolbar shows/hides, which would reset selection handles.
+  final ValueNotifier<bool> _webSelectionNotifier = ValueNotifier(false);
+
+  /// Only show custom toolbar on mobile web (not desktop web, not native mobile)
+  bool get _isWebMobile => kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+       defaultTargetPlatform == TargetPlatform.iOS);
+
   @override
   void initState() {
     super.initState();
@@ -157,6 +167,12 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     _titleController.addListener(_onTitleChanged);
     _contentController.addListener(_onTextChanged);
     _searchController.addListener(_performSearch);
+
+    // Web mobile: track text selection for custom copy/paste toolbar
+    if (_isWebMobile) {
+      _contentController.addListener(_onWebSelectionChanged);
+      _contentFocusNode.addListener(_onWebContentFocusChanged);
+    }
 
     // Apply initial search query if provided
     if (widget.initialSearchQuery != null && widget.initialSearchQuery!.isNotEmpty) {
@@ -243,6 +259,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     _textScrollController.dispose();
     _contentFocusNode.dispose();
     _titleFocusNode.dispose();
+    _webSelectionNotifier.dispose();
     for (var node in _checklistFocusNodes) {
       node.dispose();
     }
@@ -495,6 +512,162 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
       }
     });
   }
+
+  // ── Web mobile copy/paste toolbar ──────────────────────────────
+
+  void _onWebSelectionChanged() {
+    final sel = _contentController.selection;
+    final hasSelection = sel.isValid && !sel.isCollapsed &&
+        sel.start >= 0 && sel.end <= _contentController.text.length;
+    if (hasSelection != _webSelectionNotifier.value) {
+      _webSelectionNotifier.value = hasSelection;
+    }
+  }
+
+  void _onWebContentFocusChanged() {
+    if (!_contentFocusNode.hasFocus && _webSelectionNotifier.value) {
+      // Small delay to allow toolbar button taps to register before hiding
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted && !_contentFocusNode.hasFocus) {
+          _webSelectionNotifier.value = false;
+        }
+      });
+    }
+  }
+
+  void _webCopy() {
+    final sel = _contentController.selection;
+    if (!sel.isValid || sel.isCollapsed) return;
+    final text = _contentController.text.substring(sel.start, sel.end);
+    Clipboard.setData(ClipboardData(text: text));
+    _webSelectionNotifier.value = false;
+    // Collapse selection to end
+    _contentController.selection = TextSelection.collapsed(offset: sel.end);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Copied to clipboard'),
+        duration: Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _webCut() {
+    final sel = _contentController.selection;
+    if (!sel.isValid || sel.isCollapsed) return;
+    final text = _contentController.text.substring(sel.start, sel.end);
+    Clipboard.setData(ClipboardData(text: text));
+    // Delete selected text
+    final newText = _contentController.text.replaceRange(sel.start, sel.end, '');
+    _contentController.text = newText;
+    _contentController.selection = TextSelection.collapsed(offset: sel.start);
+    _webSelectionNotifier.value = false;
+  }
+
+  void _webPaste() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (data?.text == null) return;
+    final sel = _contentController.selection;
+    if (!sel.isValid) return;
+    final newText = _contentController.text.replaceRange(
+      sel.start, sel.end, data!.text!,
+    );
+    _contentController.text = newText;
+    final newOffset = sel.start + data.text!.length;
+    _contentController.selection = TextSelection.collapsed(offset: newOffset);
+    _webSelectionNotifier.value = false;
+  }
+
+  void _webSelectAll() {
+    _contentController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _contentController.text.length,
+    );
+    // Keep toolbar visible after select all
+  }
+
+  Widget _buildWebCopyPasteToolbar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isEditing = _isEditing && _canUserEdit;
+
+    return Positioned(
+      top: 8,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF2D2D2D)
+                  : const Color(0xFF3C4043),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: IntrinsicHeight(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isEditing)
+                      _webToolbarButton('Cut', _webCut),
+                    if (isEditing)
+                      _webToolbarDivider(),
+                    _webToolbarButton('Copy', _webCopy),
+                    if (isEditing) ...[                      
+                      _webToolbarDivider(),
+                      _webToolbarButton('Paste', _webPaste),
+                    ],
+                    _webToolbarDivider(),
+                    _webToolbarButton('Select all', _webSelectAll),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _webToolbarButton(String label, VoidCallback onPressed) {
+    return InkWell(
+      onTap: () {
+        // Re-focus the content field before executing so clipboard ops work
+        _contentFocusNode.requestFocus();
+        Future.delayed(const Duration(milliseconds: 50), onPressed);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0.1,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _webToolbarDivider() {
+    return Container(
+      width: 1,
+      color: Colors.white.withValues(alpha: 0.2),
+    );
+  }
+
+  // ── End web mobile copy/paste toolbar ──────────────────────────
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
@@ -1055,10 +1228,26 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
   void _showUpgradePaywall(String featureName, String message) {
     if (!mounted) return;
 
+    // Map feature context to trigger source for analytics
+    String triggerSource;
+    switch (featureName) {
+      case 'AI Writing Assist':
+        triggerSource = 'ai_assist';
+        break;
+      case 'Real-Time Collaboration':
+        triggerSource = 'collaboration';
+        break;
+      default:
+        triggerSource = 'feature_gate';
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MobilePaywallScreen(featureContext: featureName),
+        builder: (_) => MobilePaywallScreen(
+          featureContext: featureName,
+          triggerSource: triggerSource,
+        ),
       ),
     );
   }
@@ -1072,8 +1261,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
       final profile = await Supabase.instance.client.from('profiles').select('account_type').eq('id', userId).single();
       final accountType = profile['account_type'] ?? 'free';
       
-      final pricing = await Supabase.instance.client.from('global_pricing').select('notes_limit').eq('plan_id', accountType).single();
-      final limit = pricing['notes_limit'] as int? ?? 75; // Default free limit
+      final limits = await PaywallService.instance.getPlanLimits(accountType);
+      final limit = limits.notesLimit;
       
       final notes = await NotesService(authService).getActiveNotes();
       final count = notes.where((n) => n.createdBy == userId).length;
@@ -1143,7 +1332,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                               Navigator.pop(context); // Close NoteEditScreen
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const MobilePaywallScreen()),
+                                MaterialPageRoute(builder: (_) => const MobilePaywallScreen(triggerSource: 'note_limit')),
                               );
                             },
                             style: ElevatedButton.styleFrom(
@@ -2391,8 +2580,8 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
       final accountType = profile['account_type'] ?? 'free';
       final usedCredits = profile['ai_credits_used'] as int? ?? 0;
 
-      final pricing = await Supabase.instance.client.from('global_pricing').select('ai_credits_limit').eq('plan_id', accountType).single();
-      int limit = pricing['ai_credits_limit'] as int? ?? 0;
+      final aiLimits = await PaywallService.instance.getPlanLimits(accountType);
+      int limit = aiLimits.aiCredits;
 
       // Allow 3 lifetime free samples for free users
       if (accountType == 'free' && limit < 3) {
@@ -4429,124 +4618,139 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
     final lineColor = isDark ? Colors.white12 : const Color(0xFFE5EAF0);
     final separatorColor = isDark ? Colors.white24 : Colors.black;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          controller: _textScrollController,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-                  _buildViewOnlyBanner(),
-                  _buildMetadataAndTags(isDark),
-                  // Content area (body)
-                  GestureDetector(
-                    behavior: HitTestBehavior.deferToChild,
-                    onTap: () {
-                      if (!_canUserEdit || !_isEditing) return;
-                      // Already in edit mode — if body doesn't have focus,
-                      // switch focus to body and place cursor at end of text
-                      if (!_contentFocusNode.hasFocus) {
-                        _contentFocusNode.requestFocus();
-                        Future.delayed(const Duration(milliseconds: 50), () {
-                          if (mounted) {
-                            _contentController.selection = TextSelection.collapsed(
-                              offset: _contentController.text.length,
-                            );
+    return Stack(
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              controller: _textScrollController,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                      _buildViewOnlyBanner(),
+                      _buildMetadataAndTags(isDark),
+                      // Content area (body)
+                      GestureDetector(
+                        behavior: HitTestBehavior.deferToChild,
+                        onTap: () {
+                          if (!_canUserEdit || !_isEditing) return;
+                          // Already in edit mode — if body doesn't have focus,
+                          // switch focus to body and place cursor at end of text
+                          if (!_contentFocusNode.hasFocus) {
+                            _contentFocusNode.requestFocus();
+                            Future.delayed(const Duration(milliseconds: 50), () {
+                              if (mounted) {
+                                _contentController.selection = TextSelection.collapsed(
+                                  offset: _contentController.text.length,
+                                );
+                              }
+                            });
                           }
-                        });
-                      }
-                    },
-                    child: Container(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: LinedPaperPainter(
-                              lineColor: lineColor,
-                              lineHeight: lineHeight,
-                              topPadding: -5.0,
+                        },
+                        child: Container(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: LinedPaperPainter(
+                                  lineColor: lineColor,
+                                  lineHeight: lineHeight,
+                                  topPadding: -5.0,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                  _showSearch && _searchMatches.isNotEmpty
-                      ? Listener(
-                          onPointerDown: (event) {
-                            if (_isEditing || !_canUserEdit) return;
-                            final now = DateTime.now().millisecondsSinceEpoch;
-                            if (now - _lastContentTapTime < 300) {
-                              final currentSelection = _contentController.selection;
-                              setState(() {
-                                _isEditing = true;
-                                _showSearch = false;
-                              });
-                              _contentFocusNode.requestFocus();
-                              if (currentSelection.isValid) {
-                                Future.delayed(const Duration(milliseconds: 50), () {
-                                  if (mounted) {
-                                    _contentController.selection = currentSelection;
+                      _showSearch && _searchMatches.isNotEmpty
+                          ? Listener(
+                              onPointerDown: (event) {
+                                if (_isEditing || !_canUserEdit) return;
+                                final now = DateTime.now().millisecondsSinceEpoch;
+                                if (now - _lastContentTapTime < 300) {
+                                  final currentSelection = _contentController.selection;
+                                  setState(() {
+                                    _isEditing = true;
+                                    _showSearch = false;
+                                  });
+                                  _contentFocusNode.requestFocus();
+                                  if (currentSelection.isValid) {
+                                    Future.delayed(const Duration(milliseconds: 50), () {
+                                      if (mounted) {
+                                        _contentController.selection = currentSelection;
+                                      }
+                                    });
                                   }
-                                });
-                              }
-                            }
-                            _lastContentTapTime = now;
-                          },
-                          child: _buildHighlightedContent(isDark),
-                        )
-                      : Listener(
-                          onPointerDown: (event) {
-                            if (_isEditing || !_canUserEdit) return;
-                            final now = DateTime.now().millisecondsSinceEpoch;
-                            if (now - _lastContentTapTime < 300) {
-                              final currentSelection = _contentController.selection;
-                              setState(() {
-                                _isEditing = true;
-                                _showSearch = false;
-                              });
-                              _contentFocusNode.requestFocus();
-                              if (currentSelection.isValid) {
-                                Future.delayed(const Duration(milliseconds: 50), () {
-                                  if (mounted) {
-                                    _contentController.selection = currentSelection;
+                                }
+                                _lastContentTapTime = now;
+                              },
+                              child: _buildHighlightedContent(isDark),
+                            )
+                          : Listener(
+                              onPointerDown: (event) {
+                                if (_isEditing || !_canUserEdit) return;
+                                final now = DateTime.now().millisecondsSinceEpoch;
+                                if (now - _lastContentTapTime < 300) {
+                                  final currentSelection = _contentController.selection;
+                                  setState(() {
+                                    _isEditing = true;
+                                    _showSearch = false;
+                                  });
+                                  _contentFocusNode.requestFocus();
+                                  if (currentSelection.isValid) {
+                                    Future.delayed(const Duration(milliseconds: 50), () {
+                                      if (mounted) {
+                                        _contentController.selection = currentSelection;
+                                      }
+                                    });
                                   }
-                                });
-                              }
-                            }
-                            _lastContentTapTime = now;
-                          },
-                          child: TextField(
-                            controller: _contentController,
-                            focusNode: _contentFocusNode,
-                            readOnly: !_isEditing || !_canUserEdit,
-                            autofocus: _isEditing && widget.note == null,
-                            contextMenuBuilder: (context, editableTextState) {
-                              return AdaptiveTextSelectionToolbar.editableText(
-                                editableTextState: editableTextState,
-                              );
-                            },
-                            style: textStyle,
-                            strutStyle: strutStyle,
-                            decoration: InputDecoration(
-                              hintText: _isEditing ? 'Start writing...' : '',
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
-                              isCollapsed: true, // Absolutely zero internal padding
+                                }
+                                _lastContentTapTime = now;
+                              },
+                              child: TextField(
+                                controller: _contentController,
+                                focusNode: _contentFocusNode,
+                                readOnly: !_isEditing || !_canUserEdit,
+                                autofocus: _isEditing && widget.note == null,
+                                contextMenuBuilder: (context, editableTextState) {
+                                  return AdaptiveTextSelectionToolbar.editableText(
+                                    editableTextState: editableTextState,
+                                  );
+                                },
+                                style: textStyle,
+                                strutStyle: strutStyle,
+                                decoration: InputDecoration(
+                                  hintText: _isEditing ? 'Start writing...' : '',
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                  isCollapsed: true, // Absolutely zero internal padding
+                                ),
+                                maxLines: null,
+                                textAlignVertical: TextAlignVertical.top,
+                              ),
                             ),
-                            maxLines: null,
-                            textAlignVertical: TextAlignVertical.top,
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      ),
+                    ],
                   ),
-                  ),
-                ],
-              ),
-        );
-      },
+            );
+          },
+        ),
+        // Web mobile copy/paste toolbar — floats above content
+        // Uses ValueListenableBuilder so toolbar show/hide doesn't rebuild
+        // the TextField (which would reset selection handles in view mode).
+        if (_isWebMobile)
+          ValueListenableBuilder<bool>(
+            valueListenable: _webSelectionNotifier,
+            builder: (context, hasSelection, _) {
+              if (!hasSelection) return const SizedBox.shrink();
+              return _buildWebCopyPasteToolbar();
+            },
+          ),
+      ],
     );
   }
 
@@ -4637,25 +4841,35 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                   return Material(
                     key: ValueKey(item.id),
                     color: Colors.transparent,
-                    child: SizedBox(
-                      height: lineHeight,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: lineHeight),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Drag handle on left
+                          // Drag handle — compact padding
                           if (_canUserEdit) ReorderableDelayedDragStartListener(
                             index: index,
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 8),
-                              child: Icon(
-                                Icons.drag_indicator,
-                                color: AppTheme.textMuted,
-                                size: 20,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 4, right: 2),
+                              child: SizedBox(
+                                height: lineHeight,
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.drag_indicator,
+                                    color: AppTheme.textMuted,
+                                    size: 18,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                          // Checkbox
-                          Checkbox(
+                          // Checkbox — shrinkWrap removes extra tap target padding
+                          SizedBox(
+                            height: lineHeight,
+                            child: Checkbox(
                             value: item.checked,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
                             onChanged: _canUserEdit ? (value) {
                               HapticFeedback.lightImpact();
                               setState(() {
@@ -4678,7 +4892,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                               color: AppTheme.textMuted,
                               width: 2,
                             ),
+                            ),
                           ),
+                          const SizedBox(width: 4),
                           // Text field
                           Expanded(
                             child: Theme(
@@ -4723,16 +4939,23 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                               ),
                             ),
                           ),
-                          // Delete button - only show for completed items
-                          if (item.checked)
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                              onPressed: () => _deleteChecklistItem(index),
-                            ),
+                          // Delete button — always reserve space so text doesn't reflow
+                          SizedBox(
+                            width: 40,
+                            height: lineHeight,
+                            child: item.checked
+                                ? IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => _deleteChecklistItem(index),
+                                  )
+                                : null,
+                          ),
                         ],
                       ),
                     ),

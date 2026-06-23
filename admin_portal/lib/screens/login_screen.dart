@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 
@@ -14,9 +15,15 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  late final _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    if (data.event == AuthChangeEvent.signedIn && mounted) {
+      context.go('/dashboard');
+    }
+  });
 
   @override
   void dispose() {
+    _authSub.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -66,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb ? '${Uri.base.origin}/' : null,
+        redirectTo: kIsWeb ? Uri.base.origin : null,
       );
     } catch (e) {
       debugPrint('[LoginScreen] Google sign-in error: $e');

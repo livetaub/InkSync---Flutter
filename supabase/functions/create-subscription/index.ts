@@ -4,7 +4,7 @@
 //
 // This is the "brain" of the billing system. It:
 // 1. Receives a PaymentMethod token + plan selection from the Flutter app
-// 2. Reads the EXACT price from the global_pricing table (dynamic pricing)
+// 2. Reads the EXACT price from the paywall_variants table (dynamic pricing)
 // 3. Creates a Stripe Customer + attaches the card
 // 4. Creates a Stripe Subscription at the database-driven price
 // 5. Returns the subscription status to the app
@@ -14,7 +14,6 @@
 // ENVIRONMENT VARIABLES REQUIRED:
 //   STRIPE_SECRET_KEY          = sk_test_... or sk_live_...
 //   STRIPE_PRODUCT_PREMIUM     = prod_... (Stripe Product ID for Premium)
-//   STRIPE_PRODUCT_PRO         = prod_... (Stripe Product ID for Premium Pro)
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -60,10 +59,11 @@ serve(async (req: Request) => {
     }
 
     // ── 3. Parse request body ─────────────────────────────────
-    const { paymentMethodId, plan, period } = await req.json();
+    const { paymentMethodId, plan, period, variant_id } = await req.json();
     // paymentMethodId: "pm_..." from Stripe.js
-    // plan: "premium" | "premium_pro"
+    // plan: "premium"
     // period: "monthly" | "yearly"
+    // variant_id: UUID from paywall_variants (optional)
 
     if (!paymentMethodId || !plan || !period) {
       return new Response(
@@ -75,22 +75,56 @@ serve(async (req: Request) => {
       );
     }
 
-    // ── 4. Read price from global_pricing table ───────────────
-    // This is the magic: pricing is 100% controlled from your database
+    // ── 4. Read price from paywall_variants table ────────────
+    // Pricing is 100% controlled from your database via paywall variants.
+    // If variant_id is provided, use that specific variant.
+    // Otherwise, fall back to the first active variant.
     const adminSupabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: pricingRow, error: pricingError } = await adminSupabase
-      .from("global_pricing")
-      .select("price_monthly, price_yearly")
-      .eq("plan_id", plan)
-      .single();
+    let variantRow: any;
 
-    if (pricingError || !pricingRow) {
+    if (variant_id) {
+      // Look up the specific variant
+      const { data, error } = await adminSupabase
+        .from("paywall_variants")
+        .select("*")
+        .eq("id", variant_id)
+        .single();
+      if (!error && data) variantRow = data;
+    }
+
+    if (!variantRow) {
+      // Fallback: use the first active variant (sorted by traffic_weight desc)
+      const { data, error } = await adminSupabase
+        .from("paywall_variants")
+        .select("*")
+        .eq("is_active", true)
+        .order("traffic_weight", { ascending: false })
+        .limit(1)
+        .single();
+      if (error || !data) {
+        return new Response(
+          JSON.stringify({ error: `No active pricing variant found` }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      variantRow = data;
+    }
+
+    // Build the price column name: e.g., "premium_price_monthly" or "pro_price_yearly"
+    const planPrefix = "premium";
+    const priceColumn = `${planPrefix}_price_${period === "yearly" ? "yearly" : "monthly"}`;
+    const priceValue = variantRow[priceColumn];
+
+    if (!priceValue && priceValue !== 0) {
       return new Response(
-        JSON.stringify({ error: `Plan not found: ${plan}` }),
+        JSON.stringify({ error: `Price not found for ${plan} ${period}` }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -98,22 +132,15 @@ serve(async (req: Request) => {
       );
     }
 
-    // Get the correct price and convert to cents (Stripe uses cents)
-    const priceAmount =
-      period === "yearly"
-        ? Math.round(pricingRow.price_yearly * 100)
-        : Math.round(pricingRow.price_monthly * 100);
-
+    // Convert to cents (Stripe uses cents)
+    const priceAmount = Math.round(Number(priceValue) * 100);
     const interval = period === "yearly" ? "year" : "month";
 
     // Map plan to Stripe Product ID
-    const productId =
-      plan === "premium_pro"
-        ? Deno.env.get("STRIPE_PRODUCT_PRO")!
-        : Deno.env.get("STRIPE_PRODUCT_PREMIUM")!;
+    const productId = Deno.env.get("STRIPE_PRODUCT_PREMIUM")!;
 
     console.log(
-      `Creating subscription: ${plan} ${period} at $${priceAmount / 100}/${interval}`
+      `Creating subscription: ${plan} ${period} at $${priceAmount / 100}/${interval} (variant: ${variantRow.variant_name})`
     );
 
     // ── 5. Get or create Stripe Customer ──────────────────────
@@ -189,6 +216,8 @@ serve(async (req: Request) => {
       metadata: {
         supabase_user_id: user.id,
         plan: plan,
+        period: period,
+        variant_id: variantRow.id,
       },
     });
 
@@ -201,9 +230,13 @@ serve(async (req: Request) => {
       paymentIntent?.status === "succeeded"
     ) {
       // Payment succeeded immediately — activate the subscription
-      const periodEnd = new Date(
-        subscription.current_period_end * 1000
-      ).toISOString();
+      let endTimestamp = subscription.current_period_end;
+      if (!endTimestamp && subscription.items?.data?.[0]?.current_period_end) {
+        endTimestamp = subscription.items.data[0].current_period_end;
+      }
+      const periodEnd = endTimestamp
+        ? new Date(endTimestamp * 1000).toISOString()
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
       await adminSupabase
         .from("profiles")
@@ -214,6 +247,24 @@ serve(async (req: Request) => {
           subscription_period_end: periodEnd,
         })
         .eq("id", user.id);
+
+      // Track conversion in paywall_events
+      if (variantRow.id) {
+        try {
+          await adminSupabase.from("paywall_events").insert({
+            user_id: user.id,
+            variant_id: variantRow.id,
+            event_type: "checkout_completed",
+            platform: "web",
+            plan: plan,
+            period: period,
+            metadata: { subscription_id: subscription.id },
+          });
+          console.log(`📊 Tracked checkout_completed event immediately for web subscription ${subscription.id}`);
+        } catch (eventErr) {
+          console.error("Failed to track checkout_completed event:", eventErr);
+        }
+      }
 
       return new Response(
         JSON.stringify({

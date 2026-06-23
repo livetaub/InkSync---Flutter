@@ -8,6 +8,8 @@ import 'dart:ui_web' as ui;
 import 'dart:js_util' as js_util;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/paywall_variant.dart';
+import '../../services/paywall_service.dart';
 import '../../utils/platform_helper.dart' as platform;
 import '../../config/theme.dart';
 import '../../config/stripe_config.dart';
@@ -18,7 +20,7 @@ import '../../config/stripe_config.dart';
 /// The user never leaves inksyncnote.com. Card numbers are tokenized
 /// by Stripe.js in the browser and never touch our servers.
 class CheckoutScreen extends StatefulWidget {
-  final String plan;   // 'premium' or 'premium_pro'
+  final String plan;   // 'premium'
   final String period; // 'monthly' or 'yearly'
 
   const CheckoutScreen({
@@ -38,8 +40,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _cardError;
   final String _viewId = 'stripe-card-element-${DateTime.now().millisecondsSinceEpoch}';
 
-  // Pricing display
-  Map<String, dynamic> _pricing = {};
+  // Pricing from variant
+  PaywallVariant? _variant;
 
   @override
   void initState() {
@@ -89,17 +91,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
   }
 
-  /// Fetch pricing from the database for display
+  /// Fetch pricing from the user's assigned paywall variant
   Future<void> _fetchPricing() async {
     try {
-      final response = await Supabase.instance.client
-          .from('global_pricing')
-          .select()
-          .eq('plan_id', widget.plan)
-          .single();
-      if (mounted) setState(() => _pricing = response);
+      final variant = await PaywallService.instance.getVariant();
+      if (mounted) setState(() => _variant = variant);
     } catch (e) {
-      debugPrint('Error fetching pricing: $e');
+      debugPrint('Error fetching variant pricing: $e');
     }
   }
 
@@ -155,6 +153,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           'paymentMethodId': paymentMethodId,
           'plan': widget.plan,
           'period': widget.period,
+          'variant_id': _variant?.id,
         },
       );
 
@@ -227,10 +226,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final planLabel = widget.plan == 'premium_pro' ? 'Premium Pro' : 'Premium';
-    final price = widget.period == 'yearly'
-        ? _pricing['price_yearly']
-        : _pricing['price_monthly'];
+    final planLabel = 'Premium';
+    final tier = _variant?.getTier(widget.plan);
+    final price = tier != null
+        ? (widget.period == 'yearly' ? tier.priceYearly : tier.priceMonthly)
+        : null;
     final periodLabel = widget.period == 'yearly' ? '/year' : '/month';
 
     return Scaffold(

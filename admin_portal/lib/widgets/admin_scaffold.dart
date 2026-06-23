@@ -14,6 +14,7 @@ class AdminScaffold extends StatefulWidget {
 
 class _AdminScaffoldState extends State<AdminScaffold> {
   bool _isVerifying = true;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -34,18 +35,15 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           .eq('id', user.id)
           .maybeSingle();
       if (result == null) {
-        // User is definitely not an admin
         await Supabase.instance.client.auth.signOut();
         if (mounted) context.go('/login');
         return;
       }
       if (mounted) setState(() => _isVerifying = false);
     } on PostgrestException catch (_) {
-      // Database/RLS error — user is not an admin
       await Supabase.instance.client.auth.signOut();
       if (mounted) context.go('/login');
     } catch (e) {
-      // Network or other transient error — offer retry
       debugPrint('Admin verification error: $e');
       if (mounted) {
         final shouldRetry = await showDialog<bool>(
@@ -83,13 +81,21 @@ class _AdminScaffoldState extends State<AdminScaffold> {
     }
 
     final currentRoute = GoRouterState.of(context).matchedLocation;
-    
+    final isWide = MediaQuery.of(context).size.width >= 800;
+
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        leading: isWide
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.menu_rounded, color: Color(0xFF0F172A)),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.red),
@@ -101,34 +107,73 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           const SizedBox(width: 16),
         ],
       ),
-      body: Row(
-        children: [
-          Container(
-            width: 240,
-            color: const Color(0xFF0F172A),
-            child: Column(
+      drawer: isWide ? null : _buildDrawer(currentRoute),
+      body: isWide
+          ? Row(
               children: [
-                const SizedBox(height: 24),
-                _navItem(context, 'Dashboard', Icons.dashboard_rounded, '/dashboard', currentRoute),
-                _navItem(context, 'Users', Icons.people_rounded, '/users', currentRoute),
-                _navItem(context, 'Pricing', Icons.attach_money_rounded, '/pricing', currentRoute),
-                _navItem(context, 'Reports', Icons.analytics_rounded, '/reports', currentRoute),
+                _buildSidebar(currentRoute),
+                Expanded(child: widget.child),
               ],
-            ),
-          ),
-          Expanded(child: widget.child),
+            )
+          : widget.child,
+    );
+  }
+
+  Widget _buildSidebar(String currentRoute) {
+    return Container(
+      width: 240,
+      color: const Color(0xFF0F172A),
+      child: Column(
+        children: [
+          const SizedBox(height: 24),
+          _navItem(context, 'Dashboard', Icons.dashboard_rounded, '/dashboard', currentRoute),
+          _navItem(context, 'Users', Icons.people_rounded, '/users', currentRoute),
+          _navItem(context, 'Paywall', Icons.science_rounded, '/paywall', currentRoute),
+          _navItem(context, 'Reports', Icons.analytics_rounded, '/reports', currentRoute),
         ],
       ),
     );
   }
 
-  Widget _navItem(BuildContext context, String label, IconData icon, String route, String currentRoute) {
+  Widget _buildDrawer(String currentRoute) {
+    return Drawer(
+      backgroundColor: const Color(0xFF0F172A),
+      child: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(Icons.security_rounded, size: 24, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('InkSync Admin', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+            const Divider(color: Colors.white12, height: 1),
+            const SizedBox(height: 8),
+            _navItem(context, 'Dashboard', Icons.dashboard_rounded, '/dashboard', currentRoute, closeDrawer: true),
+            _navItem(context, 'Users', Icons.people_rounded, '/users', currentRoute, closeDrawer: true),
+            _navItem(context, 'Paywall', Icons.science_rounded, '/paywall', currentRoute, closeDrawer: true),
+            _navItem(context, 'Reports', Icons.analytics_rounded, '/reports', currentRoute, closeDrawer: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(BuildContext context, String label, IconData icon, String route, String currentRoute, {bool closeDrawer = false}) {
     final isSelected = currentRoute == route;
     return ListTile(
       leading: Icon(icon, color: isSelected ? Colors.white : Colors.white54),
       title: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.white54, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400)),
       selected: isSelected,
-      onTap: () => context.go(route),
+      onTap: () {
+        if (closeDrawer) Navigator.pop(context);
+        context.go(route);
+      },
     );
   }
 }

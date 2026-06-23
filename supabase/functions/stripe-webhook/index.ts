@@ -72,13 +72,23 @@ serve(async (req: Request) => {
         }
 
         // Retrieve the full subscription to get period end
-        const subscription = await stripe.subscriptions.retrieve(
-          session.subscription as string
-        );
-
-        const periodEnd = new Date(
-          subscription.current_period_end * 1000
-        ).toISOString();
+        let periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        if (session.subscription) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(
+              session.subscription as string
+            );
+            let endTimestamp = subscription?.current_period_end;
+            if (!endTimestamp && subscription?.items?.data?.[0]?.current_period_end) {
+              endTimestamp = subscription.items.data[0].current_period_end;
+            }
+            if (endTimestamp) {
+              periodEnd = new Date(endTimestamp * 1000).toISOString();
+            }
+          } catch (subErr) {
+            console.error("Error retrieving subscription in webhook:", subErr);
+          }
+        }
 
         // Activate the user's subscription in the database
         await supabase
@@ -93,6 +103,21 @@ serve(async (req: Request) => {
           })
           .eq("id", userId);
 
+        // Track checkout_completed in paywall_events for analytics
+        const variantId = session.metadata?.variant_id;
+        const period = session.metadata?.period;
+        if (variantId) {
+          await supabase.from("paywall_events").insert({
+            user_id: userId,
+            variant_id: variantId,
+            event_type: "checkout_completed",
+            platform: "stripe_webhook",
+            plan: plan,
+            period: period || null,
+            metadata: { subscription_id: session.subscription },
+          });
+        }
+
         console.log(
           `✅ Activated ${plan} for user ${userId} until ${periodEnd}`
         );
@@ -104,6 +129,10 @@ serve(async (req: Request) => {
         const subscription = event.data.object as Stripe.Subscription;
         const userId = subscription.metadata?.supabase_user_id;
         const plan = subscription.metadata?.plan || "premium";
+        const variantId = subscription.metadata?.variant_id;
+        const period = subscription.metadata?.period;
+
+        let targetUserId = userId;
 
         if (!userId) {
           // Try to find user by stripe_customer_id
@@ -118,9 +147,15 @@ serve(async (req: Request) => {
             break;
           }
 
-          const periodEnd = new Date(
-            subscription.current_period_end * 1000
-          ).toISOString();
+          targetUserId = profile.id;
+
+          let endTimestamp = subscription.current_period_end;
+          if (!endTimestamp && subscription.items?.data?.[0]?.current_period_end) {
+            endTimestamp = subscription.items.data[0].current_period_end;
+          }
+          const periodEnd = endTimestamp
+            ? new Date(endTimestamp * 1000).toISOString()
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
           const status = subscription.status;
           const isActive = status === "active" || status === "trialing";
@@ -133,36 +168,69 @@ serve(async (req: Request) => {
               stripe_subscription_id: subscription.id,
               account_type: isActive ? plan : "free",
             })
-            .eq("id", profile.id);
+            .eq("id", targetUserId);
 
           console.log(
-            `📝 Subscription updated for user ${profile.id}: ${status} (plan: ${plan})`
+            `📝 Subscription updated for user ${targetUserId}: ${status} (plan: ${plan})`
           );
-          break;
+        } else {
+          let endTimestamp = subscription.current_period_end;
+          if (!endTimestamp && subscription.items?.data?.[0]?.current_period_end) {
+            endTimestamp = subscription.items.data[0].current_period_end;
+          }
+          const periodEnd = endTimestamp
+            ? new Date(endTimestamp * 1000).toISOString()
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+          const status = subscription.status;
+          const isActive = status === "active" || status === "trialing";
+
+          await supabase
+            .from("profiles")
+            .update({
+              subscription_status: status,
+              subscription_period_end: periodEnd,
+              stripe_subscription_id: subscription.id,
+              stripe_customer_id: subscription.customer as string,
+              account_type: isActive ? plan : "free",
+              subscription_origin: "stripe",
+            })
+            .eq("id", targetUserId);
+
+          console.log(
+            `📝 Subscription updated for user ${targetUserId}: ${status} (plan: ${plan})`
+          );
         }
 
-        const periodEnd = new Date(
-          subscription.current_period_end * 1000
-        ).toISOString();
+        // Track conversion in paywall_events for web checkout Elements flow
+        const isActive = subscription.status === "active" || subscription.status === "trialing";
+        if (targetUserId && variantId && isActive) {
+          try {
+            // Check if checkout_completed has already been recorded for this subscription_id
+            const { data: existingEvents } = await supabase
+              .from("paywall_events")
+              .select("id")
+              .eq("event_type", "checkout_completed")
+              .eq("metadata->>subscription_id", subscription.id)
+              .limit(1);
 
-        const status = subscription.status;
-        const isActive = status === "active" || status === "trialing";
+            if (!existingEvents || existingEvents.length === 0) {
+              await supabase.from("paywall_events").insert({
+                user_id: targetUserId,
+                variant_id: variantId,
+                event_type: "checkout_completed",
+                platform: "web",
+                plan: plan,
+                period: period || null,
+                metadata: { subscription_id: subscription.id },
+              });
+              console.log(`📊 Tracked checkout_completed event for web subscription ${subscription.id}`);
+            }
+          } catch (eventErr) {
+            console.error("Failed to track checkout_completed event in webhook:", eventErr);
+          }
+        }
 
-        await supabase
-          .from("profiles")
-          .update({
-            subscription_status: status,
-            subscription_period_end: periodEnd,
-            stripe_subscription_id: subscription.id,
-            stripe_customer_id: subscription.customer as string,
-            account_type: isActive ? plan : "free",
-            subscription_origin: "stripe",
-          })
-          .eq("id", userId);
-
-        console.log(
-          `📝 Subscription updated for user ${userId}: ${status} (plan: ${plan})`
-        );
         break;
       }
 

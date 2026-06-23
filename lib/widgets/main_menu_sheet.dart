@@ -15,6 +15,7 @@ import '../screens/trash/trash_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/invites/pending_invites_screen.dart';
 import '../screens/subscription/subscription_screen.dart';
+import 'package:helploop_sdk/helploop_sdk.dart';
 import '../utils/ui_helper.dart';
 
 /// Floating menu sheet with navigation and actions
@@ -265,8 +266,8 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                   ),
                   _buildMenuItem(
                     context,
-                    icon: Icons.feedback_outlined,
-                    title: 'Help & Feedback',
+                    icon: Icons.help_outline,
+                    title: 'Help',
                     onTap: () {
                       Navigator.pop(context);
                       final isWide = MediaQuery.of(context).size.width > 900;
@@ -281,6 +282,15 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                           MaterialPageRoute(builder: (_) => const HelpScreen()),
                         );
                       }
+                    },
+                  ),
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.sms_outlined,
+                    title: 'Contact Support',
+                    onTap: () {
+                      Navigator.pop(context);
+                      HelpLoop.open(context);
                     },
                   ),
                   const Divider(height: 16, indent: 16, endIndent: 16),

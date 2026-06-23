@@ -1,12 +1,16 @@
 // Supabase Edge Function: create-checkout-session
 // Creates a Stripe Checkout Session for mobile (Android) payments.
-// Reads pricing from the pricing_config table, creates a hosted checkout URL.
+// Reads pricing from the paywall_variants table, creates a hosted checkout URL.
 //
 // Request body:
-//   { plan: string, period: string, success_url: string, cancel_url: string, email?: string }
+//   { plan: string, period: string, success_url: string, cancel_url: string, email?: string, variant_id?: string }
 //
 // Response:
 //   { url: string } — The Stripe Checkout Session URL
+//
+// ENVIRONMENT VARIABLES REQUIRED:
+//   STRIPE_SECRET_KEY          = sk_test_... or sk_live_...
+//   STRIPE_PRODUCT_PREMIUM     = prod_... (Stripe Product ID for Premium)
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno'
@@ -46,37 +50,71 @@ serve(async (req) => {
       })
     }
 
-    const { plan, period, success_url, cancel_url, email } = await req.json()
-
-    // Construct the pricing_config key (e.g., 'premium_monthly')
-    const planKey = `${plan}_${period}`
+    const { plan, period, success_url, cancel_url, email, variant_id } = await req.json()
 
     // Use service role for admin operations (pricing lookup, profile updates)
     const adminSupabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-    // Look up the Stripe product from pricing_config
-    const { data: pricingRow, error: pricingError } = await adminSupabase
-      .from('pricing_config')
-      .select('stripe_product_id, price_cents')
-      .eq('plan_id', planKey)
-      .single()
+    // ── Look up pricing from paywall_variants ─────────────────
+    let variantRow: any
 
-    if (pricingError || !pricingRow) {
+    if (variant_id) {
+      const { data, error } = await adminSupabase
+        .from('paywall_variants')
+        .select('*')
+        .eq('id', variant_id)
+        .single()
+      if (!error && data) variantRow = data
+    }
+
+    if (!variantRow) {
+      // Fallback: use the first active variant
+      const { data, error } = await adminSupabase
+        .from('paywall_variants')
+        .select('*')
+        .eq('is_active', true)
+        .order('traffic_weight', { ascending: false })
+        .limit(1)
+        .single()
+      if (error || !data) {
+        return new Response(
+          JSON.stringify({ error: 'No active pricing variant found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      variantRow = data
+    }
+
+    // Build the price column name: e.g., "premium_price_monthly" or "pro_price_yearly"
+    const planPrefix = 'premium'
+    const priceColumn = `${planPrefix}_price_${period === 'yearly' ? 'yearly' : 'monthly'}`
+    const priceValue = variantRow[priceColumn]
+
+    if (!priceValue && priceValue !== 0) {
       return new Response(
-        JSON.stringify({ error: `Plan '${planKey}' not found in pricing_config.` }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: `Price not found for ${plan} ${period}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    const priceCents = Math.round(Number(priceValue) * 100)
+    const interval = period === 'yearly' ? 'year' : 'month'
+
+    // Map plan to Stripe Product ID from environment variables
+    const productId = Deno.env.get('STRIPE_PRODUCT_PREMIUM')!
+
+    console.log(
+      `Creating checkout session: ${plan} ${period} at $${priceCents / 100}/${interval} (variant: ${variantRow.variant_name})`
+    )
+
     // Look up existing Stripe Price before creating a new one
     const prices = await stripe.prices.list({
-      product: pricingRow.stripe_product_id,
+      product: productId,
       active: true,
     })
 
-    const interval = period === 'yearly' ? 'year' : 'month'
     const existingPrice = prices.data.find(
-      (p) => p.unit_amount === pricingRow.price_cents && p.recurring?.interval === interval
+      (p) => p.unit_amount === priceCents && p.recurring?.interval === interval
     )
 
     let priceId: string
@@ -85,12 +123,14 @@ serve(async (req) => {
     } else {
       // Create new price on the fly only if no matching price exists
       const newPrice = await stripe.prices.create({
-        product: pricingRow.stripe_product_id,
-        unit_amount: pricingRow.price_cents,
+        product: productId,
+        unit_amount: priceCents,
         currency: 'usd',
         recurring: { interval },
         metadata: {
-          plan_id: planKey,
+          plan: plan,
+          period: period,
+          variant_id: variant_id || 'default',
           source: 'android_checkout',
         },
       })
@@ -115,6 +155,7 @@ serve(async (req) => {
         supabase_user_id: user.id,
         plan: plan,
         period: period,
+        variant_id: variant_id || '',
       },
       subscription_data: {
         metadata: {

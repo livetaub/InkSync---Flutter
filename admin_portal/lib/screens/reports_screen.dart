@@ -53,15 +53,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
     // 1. Plan Distribution
     int freeCount = 0;
     int premiumCount = 0;
-    int proCount = 0;
     for (var p in _profiles) {
       final type = (p['account_type'] ?? 'free').toString().toLowerCase();
       if (type == 'premium') premiumCount++;
-      else if (type == 'premium_pro') proCount++;
       else freeCount++;
     }
     final totalUsers = _profiles.length;
-    final paidUsers = premiumCount + proCount;
+    final paidUsers = premiumCount;
     final conversionRate = totalUsers == 0 ? 0.0 : (paidUsers / totalUsers) * 100;
 
     // 2. Projected MRR (Monthly Recurring Revenue)
@@ -98,7 +96,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           final diff = now.difference(lastActive).inDays;
           if (diff <= 7) activeLast7Days++;
           
-          final isPaid = p['account_type'] == 'premium' || p['account_type'] == 'premium_pro';
+          final isPaid = p['account_type'] == 'premium' || p['account_type'] == 'premium_free';
           if (isPaid && diff >= 30) atRiskSubscribers++;
         }
       }
@@ -219,8 +217,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   const SizedBox(width: 16),
                   _reportCard(
                     title: 'Plan Distribution',
-                    value: '$freeCount F / $premiumCount P / $proCount Pro',
-                    subtitle: 'Raw count of Free vs Premium vs Premium Pro users.',
+                    value: '$freeCount Free / $premiumCount Premium',
+                    subtitle: 'Raw count of Free vs Premium users.',
                     icon: Icons.layers_rounded,
                     color: Colors.cyan,
                   ),

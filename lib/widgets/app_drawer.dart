@@ -12,6 +12,7 @@ import 'auth_dialogs.dart';
 import '../screens/trash/trash_screen.dart';
 import '../screens/help/help_screen.dart';
 import '../screens/subscription/subscription_screen.dart';
+import 'package:helploop_sdk/helploop_sdk.dart';
 
 /// App Drawer with profile section and menu items
 class AppDrawer extends StatelessWidget {
@@ -96,14 +97,23 @@ class AppDrawer extends StatelessWidget {
                   ),
                   _buildMenuItem(
                     context,
-                    icon: Icons.feedback_outlined,
-                    title: 'Help & Feedback',
+                    icon: Icons.help_outline,
+                    title: 'Help',
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const HelpScreen()),
                       );
+                    },
+                  ),
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.sms_outlined,
+                    title: 'Contact Support',
+                    onTap: () {
+                      Navigator.pop(context);
+                      SupportHub.open(context);
                     },
                   ),
                 ],

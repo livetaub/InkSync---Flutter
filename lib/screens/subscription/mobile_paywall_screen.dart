@@ -2,25 +2,29 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '../../config/theme.dart';
+import '../../models/paywall_variant.dart';
+import '../../services/paywall_service.dart';
 import '../../services/subscription_service.dart';
 import '../checkout/android_checkout_screen.dart';
 
 /// Mobile Paywall Screen — Native iOS/Android subscription UI.
 ///
-/// Pulls pricing from the Supabase `global_pricing` table.
-/// Triggers RevenueCat native purchase flow on iOS, or Stripe on Web/Android.
-/// Matches the web pricing page's visual design.
+/// Pulls pricing and copy from the user's assigned paywall variant
+/// via [PaywallService]. Triggers RevenueCat native purchase flow
+/// on iOS, or Stripe on Web/Android. Layout is hardcoded;
+/// only text content and pricing are dynamic.
 class MobilePaywallScreen extends StatefulWidget {
   /// Optional: which feature triggered the paywall (for context messaging)
   final String? featureContext;
   final bool isFromSignup;
-  final String? initialPlan;
+  /// What triggered the paywall (for analytics: 'signup', 'ai_assist', 'note_limit', 'collaboration', 'menu', etc.)
+  final String triggerSource;
 
   const MobilePaywallScreen({
     super.key, 
     this.featureContext,
     this.isFromSignup = false,
-    this.initialPlan,
+    this.triggerSource = 'unknown',
   });
 
   @override
@@ -35,7 +39,7 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
   bool _isRestoring = false;
   String? _error;
 
-  Map<String, SubscriptionPlan> _plans = {};
+  PaywallVariant? _variant;
   List<Package> _packages = [];
 
   late AnimationController _shimmerController;
@@ -58,19 +62,22 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
 
   Future<void> _loadData() async {
     try {
-      final subService = SubscriptionService.instance;
-
-      // Fetch pricing from database and RevenueCat packages in parallel
+      // Fetch variant and RevenueCat packages in parallel
       final results = await Future.wait([
-        subService.fetchPricingFromDatabase(),
-        subService.getAvailablePackages(),
+        PaywallService.instance.getVariant(),
+        SubscriptionService.instance.getAvailablePackages(),
       ]);
 
       if (mounted) {
         setState(() {
-          _plans = results[0] as Map<String, SubscriptionPlan>;
+          _variant = results[0] as PaywallVariant;
           _packages = results[1] as List<Package>;
           _isLoading = false;
+        });
+
+        // Track paywall viewed with trigger source
+        PaywallService.instance.trackEvent('paywall_viewed', metadata: {
+          'trigger_source': widget.triggerSource,
         });
       }
     } catch (e) {
@@ -92,10 +99,17 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
 
     try {
       if (kIsWeb) {
+        // Track analytics
+        PaywallService.instance.trackEvent('cta_clicked',
+            plan: planId, period: _isAnnual ? 'yearly' : 'monthly');
+        PaywallService.instance.trackEvent('checkout_started',
+            plan: planId, period: _isAnnual ? 'yearly' : 'monthly');
+
         if (mounted) {
+          final variantId = _variant?.id ?? '';
           Navigator.pushNamed(
             context,
-            '/checkout?plan=$planId&period=${_isAnnual ? 'yearly' : 'monthly'}',
+            '/checkout?plan=$planId&period=${_isAnnual ? 'yearly' : 'monthly'}&variant=$variantId',
           );
           // Wait briefly, then reset loading state in case they navigate back
           Future.delayed(const Duration(seconds: 1), () {
@@ -103,6 +117,11 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
           });
         }
       } else if (defaultTargetPlatform == TargetPlatform.android) {
+        PaywallService.instance.trackEvent('cta_clicked',
+            plan: planId, period: _isAnnual ? 'yearly' : 'monthly');
+        PaywallService.instance.trackEvent('checkout_started',
+            plan: planId, period: _isAnnual ? 'yearly' : 'monthly');
+
         if (mounted) {
           final success = await Navigator.push(
             context,
@@ -110,6 +129,7 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
               builder: (_) => AndroidCheckoutScreen(
                 planId: planId,
                 period: _isAnnual ? 'yearly' : 'monthly',
+                variantId: _variant?.id,
               ),
             ),
           );
@@ -271,16 +291,21 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
             shaderCallback: (b) => const LinearGradient(
               colors: [Color(0xFF1E88E5), Color(0xFF10D98C)],
             ).createShader(b),
-            child: const Icon(Icons.sync_rounded, color: Colors.white, size: 24),
+            child: const Icon(Icons.diamond_rounded, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 8),
-          Text(
-            'InkSync Pro',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : AppTheme.textPrimary,
-              letterSpacing: -0.3,
+          ShaderMask(
+            shaderCallback: (b) => const LinearGradient(
+              colors: [Color(0xFF1E88E5), Color(0xFF10D98C)],
+            ).createShader(b),
+            child: Text(
+              'InkSync Premium',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: -0.3,
+              ),
             ),
           ),
           const Spacer(),
@@ -317,8 +342,8 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
   // ─── MAIN CONTENT ────────────────────────────────────────────────
 
   Widget _buildContent(bool isDark) {
-    final premiumPlan = _plans['premium'];
-    final proPlan = _plans['premium_pro'];
+    final variant = _variant ?? PaywallVariant.fallback;
+    final premiumTier = variant.premium;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -337,50 +362,19 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
           _buildToggle(isDark),
           const SizedBox(height: 24),
 
-          // Plan cards
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            alignment: WrapAlignment.center,
-            children: [
-              if (premiumPlan != null)
-                Container(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: _buildPlanCard(
-                    isDark: isDark,
-                    planId: 'premium',
-                    title: 'Premium',
-                    subtitle: 'For power users',
-                    plan: premiumPlan,
-                    isHighlighted: true,
-                    badge: 'Most Popular',
-                    features: [
-                      '${premiumPlan.notesLimit} cross-platform notes',
-                      '${premiumPlan.aiCreditsLimit} AI writing credits / month',
-                      'Real-time collaboration',
-                      'Priority support',
-                    ],
-                  ),
-                ),
-              if (proPlan != null)
-                Container(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: _buildPlanCard(
-                    isDark: isDark,
-                    planId: 'premium_pro',
-                    title: 'Premium Pro',
-                    subtitle: 'For teams & pros',
-                    plan: proPlan,
-                    isHighlighted: false,
-                    features: [
-                      '${proPlan.notesLimit} cross-platform notes',
-                      '${proPlan.aiCreditsLimit} AI writing credits / month',
-                      'Advanced collaboration',
-                      'Priority support',
-                    ],
-                  ),
-                ),
-            ],
+          // Plan card
+          Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: _buildPlanCard(
+              isDark: isDark,
+              planId: 'premium',
+              title: premiumTier.title,
+              subtitle: premiumTier.subtitle ?? '',
+              tier: premiumTier,
+              isHighlighted: true,
+              badge: premiumTier.badgeText,
+              features: premiumTier.features,
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -440,109 +434,105 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
   // ─── HERO ────────────────────────────────────────────────────────
 
   Widget _buildHero(bool isDark) {
-    return Column(
-      children: [
-        // Animated gradient icon
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.primaryColor, Color(0xFF10D98C)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryColor.withValues(alpha: 0.35),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.diamond_rounded, size: 36, color: Colors.white),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Unlock your full potential',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
-            letterSpacing: -0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'More notes. AI assist. Real-time collaboration.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 15,
-            color: isDark ? Colors.white38 : const Color(0xFF64748B),
-          ),
-        ),
-      ],
-    );
-  }
+    final headline = _variant?.pageHeadline ?? 'Unlock your full potential';
+    final subheadline = _variant?.pageSubheadline ?? 'More notes. AI assist. Real-time collaboration.';
 
-  // ─── TOGGLE ──────────────────────────────────────────────────────
-
-  Widget _buildToggle(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(4),
+      constraints: const BoxConstraints(maxWidth: 400),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.06)
-            : Colors.black.withValues(alpha: 0.04),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.08)
-              : Colors.black.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1E88E5), Color(0xFF10D98C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10D98C).withValues(alpha: 0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _toggleTab('Monthly', !_isAnnual, isDark,
-              () => setState(() => _isAnnual = false)),
-          _toggleTab('Annually', _isAnnual, isDark,
-              () => setState(() => _isAnnual = true)),
-          if (_isAnnual)
-            Container(
-              margin: const EdgeInsets.only(left: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
-                color: AppTheme.primaryColor.withValues(alpha: 0.15),
-              ),
-              child: const Text(
-                'Save 20%',
-                style: TextStyle(
-                  color: AppTheme.primaryColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
+          if (headline.isNotEmpty)
+            Text(
+              headline,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
               ),
             ),
+          if (subheadline.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              subheadline,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _toggleTab(
-      String label, bool active, bool isDark, VoidCallback onTap) {
+  // ─── TOGGLE ──────────────────────────────────────────────────────
+
+  double _calculateDiscount(double monthly, double yearly) {
+    if (monthly <= 0) return 0;
+    final fullYearly = monthly * 12;
+    if (fullYearly <= 0) return 0;
+    return ((1 - yearly / fullYearly) * 100).roundToDouble();
+  }
+
+  Widget _buildToggle(bool isDark) {
+    final variant = _variant ?? PaywallVariant.fallback;
+    final premiumTier = variant.premium;
+    final discountVal = _calculateDiscount(premiumTier.priceMonthly, premiumTier.priceYearly);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _toggleOption('Monthly', !_isAnnual, isDark),
+        const SizedBox(width: 8),
+        _toggleOption('Annually', _isAnnual, isDark, showBadge: true, discountVal: discountVal),
+      ],
+    );
+  }
+
+  Widget _toggleOption(String label, bool selected, bool isDark, {bool showBadge = false, double discountVal = 0}) {
+    final textColor = selected
+        ? Colors.white
+        : (isDark ? Colors.white54 : const Color(0xFF64748B));
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.08);
+
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        setState(() {
+          _isAnnual = label == 'Annually';
+        });
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: active ? AppTheme.primaryColor : Colors.transparent,
-          boxShadow: active
+          color: selected ? AppTheme.primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: selected
+              ? null
+              : Border.all(color: borderColor),
+          boxShadow: selected
               ? [
                   BoxShadow(
                     color: AppTheme.primaryColor.withValues(alpha: 0.3),
@@ -552,15 +542,38 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
                 ]
               : null,
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: active
-                ? Colors.white
-                : (isDark ? Colors.white54 : const Color(0xFF64748B)),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (showBadge && discountVal > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : AppTheme.primaryColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Save ${discountVal.toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : AppTheme.primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -573,12 +586,12 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
     required String planId,
     required String title,
     required String subtitle,
-    required SubscriptionPlan plan,
+    required TierContent tier,
     required bool isHighlighted,
     required List<String> features,
     String? badge,
   }) {
-    final price = _isAnnual ? plan.priceYearly : plan.priceMonthly;
+    final price = _isAnnual ? tier.priceYearly : tier.priceMonthly;
     final period = _isAnnual ? '/year' : '/month';
     final isCurrentPlan = SubscriptionService.instance.currentPlan == planId;
 
@@ -752,7 +765,9 @@ class _MobilePaywallScreenState extends State<MobilePaywallScreen>
                           const SizedBox(width: 6),
                         ],
                         Text(
-                          isCurrentPlan ? 'Current Plan' : 'Subscribe',
+                          isCurrentPlan
+                              ? 'Current Plan'
+                              : (_isAnnual ? tier.ctaYearly : tier.ctaMonthly),
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,

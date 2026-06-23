@@ -45,7 +45,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         setState(() {
           _currentPlan = res['account_type'] ?? 'Free';
           _status = res['subscription_status'] ?? 'Inactive';
-          if (_currentPlan.toLowerCase() == 'free') {
+          if (_currentPlan.toLowerCase() == 'free' || _currentPlan.toLowerCase() == 'premium_free') {
             _status = 'Active';
           }
           _periodEnd = res['subscription_period_end'];
@@ -145,7 +145,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const MobilePaywallScreen(),
+        builder: (_) => const MobilePaywallScreen(triggerSource: 'menu'),
       ),
     );
     _fetchSubscriptionStatus(); // Refresh status after paywall closes
@@ -253,7 +253,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   const SizedBox(height: 32),
                   
                   // Actions
-                  if (_currentPlan == 'Free' || _currentPlan.toLowerCase() == 'free')
+                  if (_currentPlan.toLowerCase() == 'free')
                     ElevatedButton.icon(
                       onPressed: _handleUpgrade,
                       icon: const Icon(Icons.star),
@@ -263,6 +263,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         backgroundColor: AppTheme.primaryColor,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    )
+                  else if (_currentPlan.toLowerCase() == 'premium_free')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Text(
+                        'Your Premium access is complimentary, managed by system administrators.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                          height: 1.5,
+                        ),
                       ),
                     )
                   else
@@ -277,12 +290,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton.icon(
-                          onPressed: _handleManageSubscription, // Portal/Native handles cancellation
-                          icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                          label: const Text('Cancel Subscription', style: TextStyle(color: Colors.red)),
                         ),
                       ],
                     ),

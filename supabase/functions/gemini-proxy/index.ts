@@ -132,12 +132,24 @@ serve(async (req: Request) => {
       });
     }
 
-    // Increment AI credits used
+    // Increment AI credits used and track token usage
     if (profile) {
       const currentCredits = profile.ai_credits_used ?? 0;
+      const currentInputTokens = profile.ai_input_tokens ?? 0;
+      const currentOutputTokens = profile.ai_output_tokens ?? 0;
+
+      // Extract actual token usage from Gemini response
+      const usage = geminiData?.usageMetadata;
+      const inputTokens = usage?.promptTokenCount ?? 0;
+      const outputTokens = usage?.candidatesTokenCount ?? 0;
+
       await adminSupabase
         .from('profiles')
-        .update({ ai_credits_used: currentCredits + 1 })
+        .update({
+          ai_credits_used: currentCredits + 1,
+          ai_input_tokens: currentInputTokens + inputTokens,
+          ai_output_tokens: currentOutputTokens + outputTokens,
+        })
         .eq('id', user.id);
     }
 

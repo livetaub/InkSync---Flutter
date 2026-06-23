@@ -3,6 +3,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'auth_service.dart';
+import 'paywall_service.dart';
 
 /// RevenueCat configuration
 class RevenueCatConfig {
@@ -19,7 +20,8 @@ class RevenueCatConfig {
       googleApiKey != 'goog_REPLACE_WITH_YOUR_KEY';
 }
 
-/// Subscription plan model — populated from the Supabase `global_pricing` table
+/// @deprecated Use [PaywallVariant] and [TierContent] from paywall_service instead.
+/// Kept temporarily for backward compatibility during migration.
 class SubscriptionPlan {
   final String planId;
   final double priceMonthly;
@@ -50,7 +52,7 @@ class SubscriptionPlan {
 ///
 /// On mobile:
 ///   - Initializes RevenueCat SDK
-///   - Pulls pricing from Supabase `global_pricing` for display
+///   - Pricing is now managed by [PaywallService] via `paywall_variants`
 ///   - Triggers native Apple/Google purchase flows
 ///   - Caches entitlement locally
 ///
@@ -123,22 +125,29 @@ class SubscriptionService {
     }
   }
 
+  /// @deprecated Use [PaywallService.instance.getVariant()] instead.
   /// Fetch pricing from the Supabase `global_pricing` table.
-  /// This is the single source of truth for plan details and display prices.
+  /// Kept temporarily for backward compatibility during migration.
   Future<Map<String, SubscriptionPlan>> fetchPricingFromDatabase() async {
     try {
-      final response = await Supabase.instance.client
-          .from('global_pricing')
-          .select();
-
-      final plans = <String, SubscriptionPlan>{};
-      for (final row in response) {
-        final plan = SubscriptionPlan.fromSupabase(row);
-        plans[plan.planId] = plan;
-      }
-
-      _plans = plans;
-      return plans;
+      // Try new paywall_variants system first
+      final variant = await PaywallService.instance.getVariant();
+      return {
+        'free': SubscriptionPlan(
+          planId: 'free',
+          priceMonthly: 0,
+          priceYearly: 0,
+          notesLimit: variant.free.notesLimit,
+          aiCreditsLimit: variant.free.aiCredits,
+        ),
+        'premium': SubscriptionPlan(
+          planId: 'premium',
+          priceMonthly: variant.premium.priceMonthly,
+          priceYearly: variant.premium.priceYearly,
+          notesLimit: variant.premium.notesLimit,
+          aiCreditsLimit: variant.premium.aiCredits,
+        ),
+      };
     } catch (e) {
       debugPrint('Error fetching pricing: $e');
       // Return sensible defaults if fetch fails
@@ -157,13 +166,6 @@ class SubscriptionService {
           notesLimit: 250,
           aiCreditsLimit: 100,
         ),
-        'premium_pro': const SubscriptionPlan(
-          planId: 'premium_pro',
-          priceMonthly: 9.99,
-          priceYearly: 99.99,
-          notesLimit: 500,
-          aiCreditsLimit: 200,
-        ),
       };
     }
   }
@@ -180,12 +182,7 @@ class SubscriptionService {
 
       if (_isPremium && entitlement != null) {
         // Determine plan tier from product identifier
-        final productId = entitlement.productIdentifier.toLowerCase();
-        if (productId.contains('pro')) {
-          _currentPlan = 'premium_pro';
-        } else {
-          _currentPlan = 'premium';
-        }
+        _currentPlan = 'premium';
       } else {
         _currentPlan = 'free';
       }
@@ -222,10 +219,18 @@ class SubscriptionService {
       if (entitlement != null) {
         _isPremium = true;
         final productId = entitlement.productIdentifier.toLowerCase();
-        _currentPlan = productId.contains('pro') ? 'premium_pro' : 'premium';
+        _currentPlan = 'premium';
 
         // Also update the Supabase database directly for immediate sync
         await _updateSupabasePremiumStatus(true);
+
+        // Track analytics
+        final plan = 'premium';
+        final period = productId.contains('annual') || productId.contains('year')
+            ? 'yearly' : 'monthly';
+        PaywallService.instance.trackEvent('checkout_completed',
+            plan: plan, period: period);
+
         return true;
       }
       return false;
@@ -253,7 +258,7 @@ class SubscriptionService {
       _isPremium = entitlement != null;
       if (_isPremium && entitlement != null) {
         final productId = entitlement.productIdentifier.toLowerCase();
-        _currentPlan = productId.contains('pro') ? 'premium_pro' : 'premium';
+        _currentPlan = 'premium';
         await _updateSupabasePremiumStatus(true);
       }
 

@@ -8,18 +8,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/auth_service.dart';
 import '../../config/theme.dart';
 import '../../utils/platform_helper.dart' as platform;
-import '../subscription/mobile_paywall_screen.dart';
+
 import '../../utils/ui_helper.dart';
 
 class LoginScreen extends StatefulWidget {
-  final bool showRegisterDialog;
-  final String? initialPlan;
-
-  const LoginScreen({
-    super.key, 
-    this.showRegisterDialog = false,
-    this.initialPlan,
-  });
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -61,8 +54,6 @@ class _LoginScreenState extends State<LoginScreen> {
       final currentRouteName = ModalRoute.of(context)?.settings.name;
       if (currentRouteName != '/app' && currentRouteName != '/home' && Supabase.instance.client.auth.currentSession != null) {
         Navigator.pushReplacementNamed(context, '/app');
-      } else if (widget.showRegisterDialog) {
-        _showCreateAccountDialog();
       }
     });
   }
@@ -661,15 +652,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                               );
                                               if (context.mounted) {
                                                 Navigator.pop(context); // Close dialog
-                                                Navigator.pushReplacement(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) => MobilePaywallScreen(
-                                                      isFromSignup: true,
-                                                      initialPlan: widget.initialPlan,
-                                                    ),
-                                                  ),
-                                                );
+                                                Navigator.pushReplacementNamed(context, '/app');
                                               }
                                             } catch (e) {
                                               setDialogState(() {

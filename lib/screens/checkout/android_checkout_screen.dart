@@ -15,13 +15,15 @@ import '../../config/stripe_config.dart';
 ///   3. On success redirect → intercepts and pops with success
 ///   4. On cancel redirect → intercepts and pops
 class AndroidCheckoutScreen extends StatefulWidget {
-  final String planId;    // e.g., 'premium_monthly'
+  final String planId;    // e.g., 'premium'
   final String period;    // 'monthly' or 'yearly'
+  final String? variantId; // paywall variant ID for pricing lookup
 
   const AndroidCheckoutScreen({
     super.key,
     required this.planId,
     required this.period,
+    this.variantId,
   });
 
   @override
@@ -99,31 +101,8 @@ class _AndroidCheckoutScreenState extends State<AndroidCheckoutScreen> {
         return;
       }
 
-      // Read the pricing config to get the Stripe product ID
-      final pricingConfig = await Supabase.instance.client
-          .from('pricing_config')
-          .select()
-          .eq('plan_id', '${widget.planId}_${widget.period}')
-          .maybeSingle();
-
-      if (pricingConfig == null) {
-        // Fallback: try without period suffix
-        final fallback = await Supabase.instance.client
-            .from('pricing_config')
-            .select()
-            .eq('plan_id', widget.planId)
-            .maybeSingle();
-
-        if (fallback == null) {
-          setState(() {
-            _error = 'Plan not found. Please try again later.';
-            _isCreatingSession = false;
-          });
-          return;
-        }
-      }
-
       // Create the Stripe Checkout Session via Edge Function
+      // The edge function reads pricing from paywall_variants using variant_id
       final response = await Supabase.instance.client.functions.invoke(
         'create-checkout-session',
         body: {
@@ -132,6 +111,7 @@ class _AndroidCheckoutScreenState extends State<AndroidCheckoutScreen> {
           'success_url': '${StripeConfig.successUrl}',
           'cancel_url': '${StripeConfig.cancelUrl}',
           if (userEmail != null) 'email': userEmail,
+          if (widget.variantId != null) 'variant_id': widget.variantId,
         },
       );
 
