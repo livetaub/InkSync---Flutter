@@ -225,13 +225,13 @@ const LandingPage = () => {
           <h2>Get InkSync on your device</h2>
           <p>Available on Android and the web. Your notes stay perfectly in sync across every device you use.</p>
           <div className="store-buttons">
-            <a href="#" className="store-btn" onClick={(e) => e.preventDefault()} title="Coming Soon">
+            <div className="store-btn store-btn-disabled" title="Coming Soon">
               <AppleLogo size={28} />
               <div className="store-text">
-                <span>Download on the</span>
+                <span>Coming soon on the</span>
                 <strong>App Store</strong>
               </div>
-            </a>
+            </div>
             <a href={PLAY_STORE_URL} className="store-btn" target="_blank" rel="noopener noreferrer">
               <GooglePlayLogo size={28} />
               <div className="store-text">

@@ -456,6 +456,16 @@
   color: #fff;
 }
 
+.store-btn-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.store-btn-disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .store-text {
   display: flex;
   flex-direction: column;
