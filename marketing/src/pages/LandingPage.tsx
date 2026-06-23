@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
-import { Shield, Sparkles, Users, Zap, ArrowRight, Monitor } from 'lucide-react';
+import { Shield, Sparkles, Users, Zap, ArrowRight, Monitor, RefreshCw, CalendarDays, CheckSquare, PenTool } from 'lucide-react';
 import './LandingPage.css';
 
 const TESTIMONIALS = [
-  { text: "InkSync completely transformed my workflow. Having my notes instantly available everywhere is a game changer.", author: "Sarah Jenkins", role: "Product Manager", avatar: "S" },
-  { text: "The cleanest, fastest note-taking app I've ever used. It feels like a premium productivity tool.", author: "David Chen", role: "Software Engineer", avatar: "D" },
-  { text: "Finally, a cross-platform notes app that gets the details right. The UI is absolutely gorgeous.", author: "Emily Rodriguez", role: "Designer", avatar: "E" },
-  { text: "I love the offline-first approach. It's incredibly fast and syncing just works in the background.", author: "Michael Chang", role: "Freelance Writer", avatar: "M" },
-  { text: "I've tried everything else. InkSync is the perfect balance of simplicity and power.", author: "Alex Mercer", role: "Student", avatar: "A" },
+  { text: "I switched from Google Keep and never looked back. InkSync is clean, fast, and my notes are always in sync between my phone and laptop.", author: "Sarah Jenkins", role: "Product Manager", avatar: "S" },
+  { text: "Finally a note-taking app that just works. No bloat, no clutter — just writing. And the real-time collab is perfect for my team.", author: "David Chen", role: "Software Engineer", avatar: "D" },
+  { text: "My husband and I share grocery lists and trip plans through InkSync. It's become part of our daily routine.", author: "Emily Rodriguez", role: "Teacher", avatar: "E" },
+  { text: "The offline support is a lifesaver. I write notes on my commute and everything syncs when I get to the office.", author: "Michael Chang", role: "Freelance Writer", avatar: "M" },
+  { text: "I've tried Notion, Evernote, and Bear. InkSync is the perfect balance of simplicity and the features I actually use.", author: "Alex Mercer", role: "Student", avatar: "A" },
 ];
 
 // Brand SVG Components
@@ -39,8 +39,16 @@ const FeatureCard = ({ icon, title, description, color }: { icon: React.ReactNod
   </div>
 );
 
+const USE_CASES = [
+  { emoji: "🎓", title: "Students", description: "Capture lecture notes, organize study guides, and create shared notes for group projects." },
+  { emoji: "💼", title: "Professionals", description: "Draft meeting notes, share agendas, and collaborate with your team in real time." },
+  { emoji: "✏️", title: "Creators", description: "Outline ideas, store reference material, and jot down inspiration on the go." },
+  { emoji: "👨‍👩‍👧‍👦", title: "Families & Couples", description: "Share grocery lists, plan trips, and keep household notes perfectly in sync." },
+];
+
 const LandingPage = () => {
   const APP_URL = 'https://app.inksyncnote.com';
+  const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.InkSync';
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -68,16 +76,16 @@ const LandingPage = () => {
         <div className="hero-content animate-fade-up">
           <div className="badge">
             <Zap size={16} color="var(--primary)" />
-            <span>Now available on iOS, Android & Web</span>
+            <span>Available on Android, iOS & Web</span>
           </div>
           
           <h1 className="hero-title">
-            Your thoughts, <br />
+            Simple notes, <br />
             <span className="text-gradient">perfectly in sync.</span>
           </h1>
           
           <p className="hero-subtitle">
-            Stop losing notes between devices. InkSync keeps your notes, checklists, and ideas beautifully organized and instantly synced across every platform.
+            A clean, distraction-free note-taking app that syncs across all your devices. Write, organize, and share notes with the people who matter — no clutter, no complexity.
           </p>
           
           <div className="platform-icons">
@@ -111,36 +119,73 @@ const LandingPage = () => {
       {/* Features Section */}
       <section id="features" className="features-section container">
         <div className="section-header">
-          <h2>Everything you need</h2>
-          <p>Powerful features, beautifully simple.</p>
+          <h2>Everything you need, nothing you don't</h2>
+          <p>Simple tools to write, organize, and share — across every device.</p>
         </div>
 
         <div className="grid grid-cols-3">
           <FeatureCard 
-            icon={<Sparkles size={28} color="#EAB308" />}
+            icon={<RefreshCw size={28} color="#EAB308" />}
             title="Cross-Platform Sync"
-            description="Your notes follow you everywhere — phone, tablet, laptop. Always up to date."
+            description="Write on your phone, pick up where you left off on any browser. Real-time cloud sync between Android, iOS, and the web."
             color="rgba(234, 179, 8, 0.12)"
           />
           <FeatureCard 
             icon={<Users size={28} color="#F97316" />}
-            title="Real-Time Collab"
-            description="Invite others to edit notes together. See changes live, no refresh needed."
+            title="Real-Time Collaboration"
+            description="Invite friends, family, or teammates to view and edit notes together. Perfect for shared lists, meeting notes, and group projects."
             color="rgba(249, 115, 22, 0.1)"
           />
           <FeatureCard 
+            icon={<CheckSquare size={28} color="#22C55E" />}
+            title="Checklists & Organization"
+            description="Create to-do lists inside any note. Organize with custom tags, color-coded notebooks, and instant search."
+            color="rgba(34, 197, 94, 0.1)"
+          />
+          <FeatureCard 
+            icon={<CalendarDays size={28} color="#3B82F6" />}
+            title="Calendar Integration"
+            description="Link notes to dates and events. Browse chronologically to recall what you wrote and when."
+            color="rgba(59, 130, 246, 0.1)"
+          />
+          <FeatureCard 
             icon={<Shield size={28} color="#57534E" />}
-            title="Note Locking"
-            description="Password-protect sensitive notes. Your private thoughts stay private."
+            title="Privacy & Note Locking"
+            description="Password-protect sensitive notes or entire notebooks. Your private thoughts stay private."
             color="rgba(87, 83, 78, 0.1)"
           />
+          <FeatureCard 
+            icon={<PenTool size={28} color="#A855F7" />}
+            title="AI Writing Assist"
+            description="Summarize long notes, extract action items, or brainstorm ideas — a helpful assistant when you need it."
+            color="rgba(168, 85, 247, 0.1)"
+          />
+        </div>
+      </section>
+
+      {/* Who Uses InkSync Section */}
+      <section className="use-cases-section">
+        <div className="container">
+          <div className="section-header">
+            <h2>Built for the way you work</h2>
+            <p>Whether you're studying, working, or running a household — InkSync fits right in.</p>
+          </div>
+          <div className="grid grid-cols-4">
+            {USE_CASES.map((item, i) => (
+              <div key={i} className="use-case-card">
+                <span className="use-case-emoji">{item.emoji}</span>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Testimonials Section */}
       <section id="testimonials" className="testimonials-section">
         <div className="testimonials-header">
-          <h2>Loved by professionals</h2>
+          <h2>Loved by real people</h2>
         </div>
         
         {/* We render the list twice to create a seamless infinite loop effect */}
@@ -164,8 +209,8 @@ const LandingPage = () => {
       <section className="cta-section">
         <div className="container">
           <div className="cta-box glass-panel">
-            <h2>Ready to sync your thoughts?</h2>
-            <p>Join thousands who never lose a note again.</p>
+            <h2>Ready to simplify your notes?</h2>
+            <p>Join thousands who write, organize, and share — without the clutter.</p>
             <a href={`${APP_URL}/register`} className="btn-primary btn-large cta-btn">
               Create Your Free Account
             </a>
@@ -177,7 +222,7 @@ const LandingPage = () => {
       <section id="download" className="download-section container">
         <div className="download-content glass-panel">
           <h2>Get InkSync on your device</h2>
-          <p>Download the app for iOS and Android to keep your thoughts synced everywhere you go.</p>
+          <p>Available on Android and the web. Your notes stay perfectly in sync across every device you use.</p>
           <div className="store-buttons">
             <a href="#" className="store-btn" onClick={(e) => e.preventDefault()} title="Coming Soon">
               <AppleLogo size={28} />
@@ -186,7 +231,7 @@ const LandingPage = () => {
                 <strong>App Store</strong>
               </div>
             </a>
-            <a href="#" className="store-btn" onClick={(e) => e.preventDefault()} title="Coming Soon">
+            <a href={PLAY_STORE_URL} className="store-btn" target="_blank" rel="noopener noreferrer">
               <GooglePlayLogo size={28} />
               <div className="store-text">
                 <span>GET IT ON</span>
@@ -208,6 +253,8 @@ const LandingPage = () => {
           </div>
           <div className="footer-links">
             <a href={`${APP_URL}/login`}>Sign In</a>
+            <a href="mailto:support@inksyncnote.com">Contact</a>
+            <a href="/terms">Privacy & Terms</a>
           </div>
         </div>
         <div className="footer-bottom">
