@@ -66,16 +66,25 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void _onAuthEvent(AuthState data) {
     final event = data.event;
 
-    // Mobile: OAuth deep-link returned while WelcomeScreen is visible
+    // Mobile: OAuth deep-link returned after sign-in
     if (!kIsWeb && event == AuthChangeEvent.signedIn) {
       closeInAppWebView();
       // Clear guest mode flag on sign-in
-      SharedPreferences.getInstance().then((prefs) {
+      SharedPreferences.getInstance().then((prefs) async {
         prefs.remove('is_guest_mode');
+        // If onboarding was already completed (returning user), go to app
+        final hasCompletedOnboarding =
+            prefs.getBool('has_seen_onboarding') ?? false;
+        if (mounted) {
+          // Pop any pushed screens (e.g. LoginScreen) so AuthWrapper is on top
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          if (hasCompletedOnboarding) {
+            setState(() => _phase = _MobilePhase.app);
+          } else if (_phase == _MobilePhase.welcome) {
+            _advanceToTutorial();
+          }
+        }
       });
-      if (_phase == _MobilePhase.welcome) {
-        _advanceToTutorial();
-      }
       return;
     }
 
@@ -191,7 +200,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => const LoginScreen(showRegisterDialog: true),
+            builder: (_) => const LoginScreen(),
           ),
         );
       },
@@ -226,19 +235,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
             platform.replaceHistoryState('/app');
           });
 
-          final pendingPlan = platform.getLocalStorageValue('pending_plan');
-          final pendingPeriod =
-              platform.getLocalStorageValue('pending_period');
-          if (pendingPlan != null && pendingPlan.isNotEmpty) {
-            platform.removeLocalStorageValue('pending_plan');
-            platform.removeLocalStorageValue('pending_period');
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              final origin = platform.getLocationOrigin();
-              platform.setLocationHref(
-                '$origin/checkout?plan=$pendingPlan&period=${pendingPeriod ?? 'monthly'}',
-              );
-            });
-          }
+
           return const MainNavigation();
         }
 
