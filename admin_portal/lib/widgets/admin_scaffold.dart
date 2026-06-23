@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AdminScaffold extends StatefulWidget {
   final Widget child;
@@ -130,6 +131,9 @@ class _AdminScaffoldState extends State<AdminScaffold> {
           _navItem(context, 'Users', Icons.people_rounded, '/users', currentRoute),
           _navItem(context, 'Paywall', Icons.science_rounded, '/paywall', currentRoute),
           _navItem(context, 'Reports', Icons.analytics_rounded, '/reports', currentRoute),
+          const Spacer(),
+          _externalNavItem('Support Inbox', Icons.support_agent_rounded),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -158,6 +162,9 @@ class _AdminScaffoldState extends State<AdminScaffold> {
             _navItem(context, 'Users', Icons.people_rounded, '/users', currentRoute, closeDrawer: true),
             _navItem(context, 'Paywall', Icons.science_rounded, '/paywall', currentRoute, closeDrawer: true),
             _navItem(context, 'Reports', Icons.analytics_rounded, '/reports', currentRoute, closeDrawer: true),
+            const Spacer(),
+            _externalNavItem('Support Inbox', Icons.support_agent_rounded, closeDrawer: true),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -173,6 +180,19 @@ class _AdminScaffoldState extends State<AdminScaffold> {
       onTap: () {
         if (closeDrawer) Navigator.pop(context);
         context.go(route);
+      },
+    );
+  }
+
+  Widget _externalNavItem(String label, IconData icon, {bool closeDrawer = false}) {
+    const supportUrl = 'https://web-black-five-25.vercel.app/#/projects/9773e382-5e44-4c64-b64e-4da37f93164d/inbox';
+    return ListTile(
+      leading: Icon(icon, color: Colors.white54),
+      title: Text(label, style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.w400)),
+      trailing: const Icon(Icons.open_in_new_rounded, color: Colors.white30, size: 16),
+      onTap: () {
+        if (closeDrawer) Navigator.pop(context);
+        launchUrl(Uri.parse(supportUrl), mode: LaunchMode.externalApplication);
       },
     );
   }
