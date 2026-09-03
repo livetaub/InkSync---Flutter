@@ -42,12 +42,32 @@ echo Current Version: %CURRENT_BUILD_NAME%
 echo Current Build Number: %CURRENT_BUILD_NUMBER%
 echo.
 
-:: 3. Prompt user for new version values
-set /p "NEW_BUILD_NAME=Enter new Version Name (e.g., 1.0.1) [Press Enter to keep %CURRENT_BUILD_NAME%]: "
-if "%NEW_BUILD_NAME%"=="" set "NEW_BUILD_NAME=%CURRENT_BUILD_NAME%"
+:: 3. Calculate bumped versions
+for /f "tokens=1,2,3 delims=." %%a in ("%CURRENT_BUILD_NAME%") do (
+    set "V_MAJOR=%%a"
+    set "V_MINOR=%%b"
+    set "V_PATCH=%%c"
+)
+:: Default to 0 if empty
+if "%V_PATCH%"=="" set "V_PATCH=0"
+set /a V_NEXT_PATCH=V_PATCH + 1
+set "BUMPED_BUILD_NAME=%V_MAJOR%.%V_MINOR%.%V_NEXT_PATCH%"
+set /a BUMPED_BUILD_NUMBER=CURRENT_BUILD_NUMBER + 1
 
-set /p "NEW_BUILD_NUMBER=Enter new Build Number (e.g., 2) [Press Enter to keep %CURRENT_BUILD_NUMBER%]: "
-if "%NEW_BUILD_NUMBER%"=="" set "NEW_BUILD_NUMBER=%CURRENT_BUILD_NUMBER%"
+:: 4. Prompt user for new version values
+set /p "NEW_BUILD_NAME=Version Name [Type 'U' to bump to %BUMPED_BUILD_NAME%, Enter to keep %CURRENT_BUILD_NAME%, or type custom]: "
+if /I "%NEW_BUILD_NAME%"=="U" (
+    set "NEW_BUILD_NAME=%BUMPED_BUILD_NAME%"
+) else if "%NEW_BUILD_NAME%"=="" (
+    set "NEW_BUILD_NAME=%CURRENT_BUILD_NAME%"
+)
+
+set /p "NEW_BUILD_NUMBER=Build Number [Type 'U' to bump to %BUMPED_BUILD_NUMBER%, Enter to keep %CURRENT_BUILD_NUMBER%, or type custom]: "
+if /I "%NEW_BUILD_NUMBER%"=="U" (
+    set "NEW_BUILD_NUMBER=%BUMPED_BUILD_NUMBER%"
+) else if "%NEW_BUILD_NUMBER%"=="" (
+    set "NEW_BUILD_NUMBER=%CURRENT_BUILD_NUMBER%"
+)
 
 echo.
 echo Updating pubspec.yaml to version: %NEW_BUILD_NAME%+%NEW_BUILD_NUMBER%...

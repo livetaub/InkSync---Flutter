@@ -41,8 +41,9 @@ class LocalDatabaseService {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 5,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -101,6 +102,7 @@ class LocalDatabaseService {
         default_color TEXT DEFAULT '#10B981',
         haptic_enabled INTEGER DEFAULT 1,
         is_premium INTEGER DEFAULT 0,
+        show_quick_note INTEGER DEFAULT 1,
         created_at TEXT,
         updated_at TEXT,
         sync_status INTEGER NOT NULL DEFAULT 0
@@ -114,6 +116,105 @@ class LocalDatabaseService {
         value TEXT NOT NULL
       )
     ''');
+    
+    // Calendar events table
+    await db.execute('''
+      CREATE TABLE calendar_events (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        title TEXT NOT NULL DEFAULT '',
+        note_body TEXT,
+        event_date TEXT NOT NULL,
+        event_time TEXT,
+        is_done INTEGER NOT NULL DEFAULT 0,
+        reminder TEXT,
+        recurrence_type TEXT,
+        recurrence_days TEXT DEFAULT '[]',
+        completed_dates TEXT DEFAULT '[]',
+        overrides TEXT DEFAULT '{}',
+        linked_note_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        sync_status INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    // Quick notes table
+    await db.execute('''
+      CREATE TABLE quick_notes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        type TEXT NOT NULL DEFAULT 'text',
+        content TEXT,
+        media_url TEXT,
+        file_name TEXT,
+        duration_seconds INTEGER,
+        is_pinned INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        sync_status INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      try {
+        await db.execute('ALTER TABLE user_settings ADD COLUMN show_quick_note INTEGER DEFAULT 1;');
+      } catch (_) {}
+      
+      await db.execute('''
+        CREATE TABLE calendar_events (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          title TEXT NOT NULL DEFAULT '',
+          note_body TEXT,
+          event_date TEXT NOT NULL,
+          event_time TEXT,
+          is_done INTEGER NOT NULL DEFAULT 0,
+          reminder TEXT,
+          recurrence_type TEXT,
+          recurrence_days TEXT DEFAULT '[]',
+          completed_dates TEXT DEFAULT '[]',
+          overrides TEXT DEFAULT '{}',
+          linked_note_id TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          sync_status INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+    }
+
+    if (oldVersion < 3) {
+      try {
+        await db.execute('ALTER TABLE user_settings ADD COLUMN show_quick_note INTEGER DEFAULT 1;');
+      } catch (_) {}
+    }
+
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE quick_notes (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          type TEXT NOT NULL DEFAULT 'text',
+          content TEXT,
+          media_url TEXT,
+          file_name TEXT,
+          duration_seconds INTEGER,
+          is_pinned INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          sync_status INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+    }
+
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE calendar_events ADD COLUMN sort_order INTEGER DEFAULT 0;');
+      } catch (_) {}
+    }
   }
 
   // ===========================================================
@@ -472,6 +573,46 @@ class LocalDatabaseService {
   }
 
   // ===========================================================
+  // Calendar Events CRUD
+  // ===========================================================
+
+  Future<void> insertCalendarEvent(Map<String, dynamic> eventData) async {
+    final db = await database;
+    await db.insert('calendar_events', eventData, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> getCalendarEvents(String? userId) async {
+    final db = await database;
+    if (userId != null && userId.isNotEmpty) {
+      return await db.query(
+        'calendar_events',
+        where: 'user_id = ? AND sync_status != ?',
+        whereArgs: [userId, SyncStatus.pendingDelete],
+      );
+    }
+    return await db.query(
+      'calendar_events',
+      where: 'sync_status != ?',
+      whereArgs: [SyncStatus.pendingDelete],
+    );
+  }
+
+  Future<void> updateCalendarEvent(String eventId, Map<String, dynamic> updates) async {
+    final db = await database;
+    await db.update('calendar_events', updates, where: 'id = ?', whereArgs: [eventId]);
+  }
+
+  Future<void> deleteCalendarEvent(String eventId) async {
+    final db = await database;
+    await db.delete('calendar_events', where: 'id = ?', whereArgs: [eventId]);
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingCalendarEvents() async {
+    final db = await database;
+    return await db.query('calendar_events', where: 'sync_status != ?', whereArgs: [SyncStatus.synced]);
+  }
+
+  // ===========================================================
   // User Settings
   // ===========================================================
 
@@ -616,6 +757,73 @@ class LocalDatabaseService {
     } catch (_) {
       return [];
     }
+  }
+
+  // ===========================================================
+  // Quick Notes CRUD
+  // ===========================================================
+
+  Future<void> insertQuickNote(Map<String, dynamic> data) async {
+    final db = await database;
+    await db.insert(
+      'quick_notes',
+      data,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> updateQuickNote(String id, Map<String, dynamic> data) async {
+    final db = await database;
+    await db.update(
+      'quick_notes',
+      data,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> deleteQuickNote(String id) async {
+    final db = await database;
+    await db.update(
+      'quick_notes',
+      {'sync_status': 3}, // Mark as deleted
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> hardDeleteQuickNote(String id) async {
+    final db = await database;
+    await db.delete('quick_notes', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Map<String, dynamic>>> getQuickNotes(String userId) async {
+    final db = await database;
+    return await db.query(
+      'quick_notes',
+      where: 'user_id = ? AND sync_status != 3',
+      whereArgs: [userId],
+      orderBy: 'created_at ASC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingQuickNotes(String userId) async {
+    final db = await database;
+    return await db.query(
+      'quick_notes',
+      where: 'user_id = ? AND sync_status != 0',
+      whereArgs: [userId],
+    );
+  }
+
+  Future<void> markQuickNoteSynced(String id) async {
+    final db = await database;
+    await db.update(
+      'quick_notes',
+      {'sync_status': 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   /// Close the database

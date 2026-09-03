@@ -41,11 +41,12 @@ void main() async {
     ),
   );
 
-  // Initialize HelpLoop
+  // Initialize HelpLoop SDK
   await HelpLoop.initialize(
     projectId: '9773e382-5e44-4c64-b64e-4da37f93164d',
     apiKey: 'pk_live_ae92a406477da2342015cb8c941821a8e9afe7c751c6e615cd3db16c4bdf2413',
     apiUrl: 'https://bwnrvdgonsqffiflcbem.supabase.co/functions/v1/helploop',
+    appVersion: '1.0.0',
   );
 
   // Sync authentication state with HelpLoop
@@ -54,7 +55,7 @@ void main() async {
     if (user != null) {
       await HelpLoop.identify(
         externalId: user.email ?? user.id,
-        identifierType: 'email',
+        identifierType: IdentifierType.email,
         email: user.email,
         name: user.userMetadata?['name']?.toString() ?? user.email?.split('@').first,
         metadata: {
@@ -63,7 +64,6 @@ void main() async {
       );
     } else {
       await HelpLoop.logout();
-      await HelpLoop.identifyAnonymous();
     }
   });
 

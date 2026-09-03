@@ -51,11 +51,15 @@ class SyncEngine {
       // Step 1: PUSH local changes to server
       await _pushNotes();
       await _pushTags();
+      await _pushCalendarEvents();
+      await _pushQuickNotes();
 
       // Step 2: PULL server changes to local
       await _pullNotes();
       await _pullTags();
       await _pullUserSettings();
+      await _pullCalendarEvents();
+      await _pullQuickNotes();
 
       // Step 3: Update the sync checkpoint
       final now = DateTime.now().toUtc().toIso8601String();
@@ -312,6 +316,194 @@ class SyncEngine {
     } catch (_) {
       return [];
     }
+  }
+  
+  Future<void> _pushCalendarEvents() async {
+    final pending = await _localDb.getPendingCalendarEvents();
+    debugPrint('SyncEngine: Pushing ${pending.length} pending calendar events');
+
+    for (final row in pending) {
+      final eventId = row['id'] as String;
+      final status = row['sync_status'] as int;
+
+      try {
+        if (status == SyncStatus.pendingInsert) {
+          final data = _prepareCalendarEventForServer(row);
+          data['user_id'] = _userId;
+          try {
+            await _client.from('calendar_events').insert(data);
+          } on PostgrestException catch (e) {
+            if (e.code == '23505') {
+              await _client.from('calendar_events').update(data).eq('id', eventId);
+            } else {
+              rethrow;
+            }
+          }
+          await _localDb.updateCalendarEvent(eventId, {'sync_status': SyncStatus.synced});
+        } else if (status == SyncStatus.pendingUpdate) {
+          final data = _prepareCalendarEventForServer(row);
+          await _client.from('calendar_events').update(data).eq('id', eventId);
+          await _localDb.updateCalendarEvent(eventId, {'sync_status': SyncStatus.synced});
+        } else if (status == SyncStatus.pendingDelete) {
+          try {
+            await _client.from('calendar_events').delete().eq('id', eventId);
+          } catch (_) {}
+          await _localDb.deleteCalendarEvent(eventId);
+        }
+      } catch (e) {
+        debugPrint('SyncEngine: Failed to push calendar event $eventId — $e');
+      }
+    }
+  }
+
+  Future<void> _pullCalendarEvents() async {
+    final lastSync = await _localDb.getLastSyncTimestamp();
+
+    List<dynamic> serverEvents;
+    if (lastSync != null) {
+      serverEvents = await _client
+          .from('calendar_events')
+          .select()
+          .eq('user_id', _userId!)
+          .gt('updated_at', lastSync);
+    } else {
+      serverEvents = await _client
+          .from('calendar_events')
+          .select()
+          .eq('user_id', _userId!);
+    }
+
+    debugPrint('SyncEngine: Pulled ${serverEvents.length} calendar events from server');
+
+    for (final serverEvent in serverEvents) {
+      final eventId = serverEvent['id'] as String;
+
+      final localEvents = await _localDb.getCalendarEvents(_userId);
+      final localEvent = localEvents.where((e) => e['id'] == eventId).firstOrNull;
+
+      if (localEvent == null) {
+        final data = Map<String, dynamic>.from(serverEvent);
+        data['sync_status'] = SyncStatus.synced;
+        data['is_done'] = data['is_done'] == true ? 1 : 0;
+        if (data['recurrence_days'] != null) data['recurrence_days'] = jsonEncode(data['recurrence_days']);
+        if (data['completed_dates'] != null) data['completed_dates'] = jsonEncode(data['completed_dates']);
+        if (data['overrides'] != null) data['overrides'] = jsonEncode(data['overrides']);
+        await _localDb.insertCalendarEvent(data);
+      } else {
+        final serverUpdated = DateTime.parse(serverEvent['updated_at'] as String);
+        final localUpdated = DateTime.parse(localEvent['updated_at'] as String);
+
+        if (serverUpdated.isAfter(localUpdated)) {
+          final data = Map<String, dynamic>.from(serverEvent);
+          data['sync_status'] = SyncStatus.synced;
+          data['is_done'] = data['is_done'] == true ? 1 : 0;
+          if (data['recurrence_days'] != null) data['recurrence_days'] = jsonEncode(data['recurrence_days']);
+          if (data['completed_dates'] != null) data['completed_dates'] = jsonEncode(data['completed_dates']);
+          if (data['overrides'] != null) data['overrides'] = jsonEncode(data['overrides']);
+          await _localDb.insertCalendarEvent(data);
+        }
+      }
+    }
+  }
+
+  // ===========================================================
+  // QUICK NOTES SYNC
+  // ===========================================================
+
+  Future<void> _pushQuickNotes() async {
+    final pending = await _localDb.getPendingQuickNotes(_userId!);
+    debugPrint('SyncEngine: Pushing ${pending.length} pending quick notes');
+
+    for (final row in pending) {
+      final id = row['id'] as String;
+      final status = row['sync_status'] as int;
+      final data = Map<String, dynamic>.from(row);
+      data.remove('sync_status');
+      data['is_pinned'] = data['is_pinned'] == 1;
+
+      try {
+        if (status == SyncStatus.pendingInsert) {
+          try {
+            await _client.from('quick_notes').insert(data);
+          } catch (_) {
+            await _client.from('brain_dumps').insert(data);
+          }
+          await _localDb.markQuickNoteSynced(id);
+        } else if (status == SyncStatus.pendingUpdate) {
+          try {
+            await _client.from('quick_notes').update(data).eq('id', id);
+          } catch (_) {
+            await _client.from('brain_dumps').update(data).eq('id', id);
+          }
+          await _localDb.markQuickNoteSynced(id);
+        } else if (status == SyncStatus.pendingDelete) {
+          try {
+            await _client.from('quick_notes').delete().eq('id', id);
+          } catch (_) {
+            await _client.from('brain_dumps').delete().eq('id', id);
+          }
+          await _localDb.hardDeleteQuickNote(id);
+        }
+      } catch (e) {
+        debugPrint('SyncEngine: Failed to push quick note $id — $e');
+      }
+    }
+  }
+
+  Future<void> _pullQuickNotes() async {
+    List<dynamic> serverNotes = [];
+    try {
+      serverNotes = await _client
+          .from('quick_notes')
+          .select()
+          .eq('user_id', _userId!);
+    } catch (e) {
+      debugPrint('SyncEngine: quick_notes table might not exist yet, trying brain_dumps fallback... $e');
+      try {
+        serverNotes = await _client
+            .from('brain_dumps')
+            .select()
+            .eq('user_id', _userId!);
+      } catch (fallbackError) {
+        debugPrint('SyncEngine: both quick_notes and brain_dumps failed. $fallbackError');
+        return; // Exit gracefully so the rest of the sync doesn't crash
+      }
+    }
+
+    final localNotesList = await _localDb.getQuickNotes(_userId!);
+    final localNotesMap = {for (var n in localNotesList) n['id'] as String: n};
+
+    for (final serverNote in serverNotes) {
+      final id = serverNote['id'] as String;
+      final localNote = localNotesMap[id];
+
+      if (localNote == null) {
+        final data = Map<String, dynamic>.from(serverNote);
+        data['sync_status'] = SyncStatus.synced;
+        data['is_pinned'] = data['is_pinned'] == true ? 1 : 0;
+        await _localDb.insertQuickNote(data);
+      } else {
+        final serverUpdated = DateTime.parse(serverNote['updated_at'] as String);
+        final localUpdated = DateTime.parse(localNote['updated_at'] as String);
+
+        if (serverUpdated.isAfter(localUpdated)) {
+          final data = Map<String, dynamic>.from(serverNote);
+          data['sync_status'] = SyncStatus.synced;
+          data['is_pinned'] = data['is_pinned'] == true ? 1 : 0;
+          await _localDb.insertQuickNote(data);
+        }
+      }
+    }
+  }
+  
+  Map<String, dynamic> _prepareCalendarEventForServer(Map<String, dynamic> row) {
+    final data = Map<String, dynamic>.from(row);
+    data.remove('sync_status');
+    data['is_done'] = data['is_done'] == 1;
+    if (data['recurrence_days'] is String) data['recurrence_days'] = _safeDecode(data['recurrence_days'] as String);
+    if (data['completed_dates'] is String) data['completed_dates'] = _safeDecode(data['completed_dates'] as String);
+    if (data['overrides'] is String) data['overrides'] = _safeDecode(data['overrides'] as String);
+    return data;
   }
 }
 

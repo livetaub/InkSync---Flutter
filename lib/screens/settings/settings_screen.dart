@@ -259,6 +259,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _updateSetting('notificationsEnabled', value);
           },
         ),
+        const Divider(height: 24),
 
         const SizedBox(height: 16),
       ],

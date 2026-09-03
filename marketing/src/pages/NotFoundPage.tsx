@@ -1,8 +1,14 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { useDocumentMetadata } from '../hooks/useDocumentMetadata';
 import './NotFoundPage.css';
 
 const NotFoundPage = () => {
+  useDocumentMetadata(
+    "Page Not Found — InkSync",
+    "Sorry, the page you're looking for doesn't exist on InkSync."
+  );
+
   return (
     <div className="not-found-page">
       <h1>404</h1>

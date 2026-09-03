@@ -819,15 +819,13 @@ class NotesService {
     }
   }
 
-  /// Revoke an invite when removing a collaborator
+  /// Revoke an invite / remove a collaborator by deleting the invite row.
+  /// This immediately revokes access since notes RLS checks for accepted invites.
   Future<void> revokeInvite(String noteId, String email) async {
     try {
       await _client
           .from('collaboration_invites')
-          .update({
-            'status': 'revoked',
-            'rejected_at': DateTime.now().toUtc().toIso8601String(),
-          })
+          .delete()
           .eq('note_id', noteId)
           .eq('to_email', email.toLowerCase());
     } catch (e) {

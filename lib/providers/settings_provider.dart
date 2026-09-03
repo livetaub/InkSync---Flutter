@@ -7,10 +7,12 @@ class SettingsProvider extends ChangeNotifier {
   String _viewMode = 'list';
   String _sortBy = 'modified';
   bool _isPremium = false;
+  bool _showBrainDump = true;
   
   String get viewMode => _viewMode;
   String get sortBy => _sortBy;
   bool get isPremium => _isPremium;
+  bool get showBrainDump => _showBrainDump;
   
   void setViewMode(String mode) {
     _viewMode = mode;
@@ -44,6 +46,7 @@ class SettingsProvider extends ChangeNotifier {
           ? settings.sortBy
           : 'modified';
       _isPremium = settings.isPremium;
+      _showBrainDump = settings.showBrainDump;
       notifyListeners();
     } catch (e) {
       // Use defaults
@@ -62,6 +65,9 @@ class SettingsProvider extends ChangeNotifier {
         break;
       case 'isPremium':
         _isPremium = value as bool;
+        break;
+      case 'showBrainDump':
+        _showBrainDump = value as bool;
         break;
     }
     notifyListeners();

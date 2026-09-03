@@ -3,6 +3,8 @@ import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import NotFoundPage from './pages/NotFoundPage';
 import TermsPage from './pages/TermsPage';
+import ComparisonPage from './pages/ComparisonPage';
+import AlternativePage from './pages/AlternativePage';
 import './App.css';
 
 function App() {
@@ -25,6 +27,8 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/compare/:slug" element={<ComparisonPage />} />
+        <Route path="/alternative/:slug" element={<AlternativePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Router>
@@ -32,3 +36,4 @@ function App() {
 }
 
 export default App;
+

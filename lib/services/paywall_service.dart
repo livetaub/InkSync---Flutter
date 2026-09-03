@@ -108,18 +108,21 @@ class PaywallService {
   /// Get plan limits for feature enforcement (note limits, AI credits).
   /// Used by note_edit_screen to check limits.
   Future<PlanLimits> getPlanLimits(String accountType) async {
+    // Normalize premium_free → premium (gifted users get full premium limits)
+    final resolvedType = accountType == 'premium_free' ? 'premium' : accountType;
+
     try {
       // 1. Try to fetch live from global_pricing table
       final response = await Supabase.instance.client
           .from('global_pricing')
           .select('notes_limit, ai_credits_limit')
-          .eq('plan_id', accountType)
+          .eq('plan_id', resolvedType)
           .maybeSingle();
 
       if (response != null) {
         final limits = PlanLimits(
-          notesLimit: response['notes_limit'] as int? ?? (accountType == 'premium' ? 250 : 75),
-          aiCredits: response['ai_credits_limit'] as int? ?? (accountType == 'premium' ? 100 : 0),
+          notesLimit: response['notes_limit'] as int? ?? (resolvedType == 'premium' ? 250 : 75),
+          aiCredits: response['ai_credits_limit'] as int? ?? (resolvedType == 'premium' ? 100 : 0),
         );
         // Cache locally
         await _cachePlanLimitsLocally(accountType, limits);
@@ -135,8 +138,8 @@ class PaywallService {
 
     // 3. Fallback defaults
     return PlanLimits(
-      notesLimit: accountType == 'premium' ? 250 : 75,
-      aiCredits: accountType == 'premium' ? 100 : 0,
+      notesLimit: resolvedType == 'premium' ? 250 : 75,
+      aiCredits: resolvedType == 'premium' ? 100 : 0,
     );
   }
 

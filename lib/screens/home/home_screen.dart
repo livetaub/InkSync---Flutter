@@ -12,6 +12,8 @@ import '../../widgets/invite_banner.dart';
 import '../note_edit/note_edit_screen.dart';
 import '../../providers/selection_provider.dart';
 import '../../utils/ui_helper.dart';
+import '../../widgets/quick_note_card.dart';
+import '../quick_note/quick_note_screen.dart';
 import '../../services/local_database_service.dart';
 
 /// Modern HomeScreen with simplified header - menu in bottom nav
@@ -354,6 +356,9 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _openNote(Note note) {
+    // Hide the keyboard if it is open (e.g., from searching)
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final selectionProvider = Provider.of<SelectionProvider>(
       context,
       listen: false,
@@ -376,7 +381,10 @@ class HomeScreenState extends State<HomeScreen> {
             return FadeTransition(opacity: animation, child: child);
           },
         ),
-      ).then((_) => _loadData());
+      ).then((_) {
+        deactivateSearch();
+        _loadData();
+      });
     }
   }
 
@@ -559,6 +567,18 @@ class HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const Spacer(),
+          // Quick Note Button
+          IconButton(
+            icon: Icon(Icons.bolt_rounded, 
+              color: isDark ? Colors.white70 : AppTheme.textSecondary,
+              size: 22,
+            ),
+            tooltip: 'Quick Note',
+            onPressed: () {
+              Provider.of<SelectionProvider>(context, listen: false).selectQuickNote();
+            },
+          ),
+          const SizedBox(width: 4),
           // Sync Indicator
           if (!kIsWeb) ...[
             if (!authService.isLoggedIn)
@@ -642,18 +662,6 @@ class HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
-          if (_globalSearchController.text.isNotEmpty)
-            IconButton(
-              icon: Icon(
-                Icons.clear_rounded,
-                color: isDark ? Colors.white54 : Colors.grey,
-                size: 18,
-              ),
-              onPressed: () {
-                _globalSearchController.clear();
-                setState(() => _globalSearchQuery = '');
-              },
-            ),
           IconButton(
             icon: Icon(
               Icons.close_rounded,
@@ -780,7 +788,9 @@ class HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            'No notes yet',
+            widget.noteTypeFilter == 'checklist'
+                ? 'No checklists yet'
+                : 'No notes yet',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -789,7 +799,9 @@ class HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Tap + to create your first note',
+            widget.noteTypeFilter == 'checklist'
+                ? 'Tap + to create your first checklist'
+                : 'Tap + to create your first note',
             style: TextStyle(
               fontSize: 14,
               color: isDark ? Colors.white38 : AppTheme.textMuted,
@@ -814,10 +826,12 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
+
+
   Widget _buildListView() {
     final notes = _filteredNotes;
-    return Consumer<SelectionProvider>(
-      builder: (context, selectionProvider, child) {
+    return Consumer2<SelectionProvider, SettingsProvider>(
+      builder: (context, selectionProvider, settingsProvider, child) {
         return ListView.builder(
           padding: const EdgeInsets.only(top: 8, bottom: 100),
           itemCount: notes.length,
@@ -840,8 +854,8 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDetailsView() {
     final notes = _filteredNotes;
-    return Consumer<SelectionProvider>(
-      builder: (context, selectionProvider, child) {
+    return Consumer2<SelectionProvider, SettingsProvider>(
+      builder: (context, selectionProvider, settingsProvider, child) {
         return ListView.builder(
           padding: const EdgeInsets.only(top: 8, bottom: 100),
           itemCount: notes.length,
@@ -864,29 +878,37 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildGridView({required bool isLarge}) {
     final notes = _filteredNotes;
-    return Consumer<SelectionProvider>(
-      builder: (context, selectionProvider, child) {
-        return GridView.builder(
-          padding: const EdgeInsets.all(12),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: isLarge ? 0.75 : 0.9,
-          ),
-          itemCount: notes.length,
-          itemBuilder: (context, index) {
-            final note = notes[index];
-            return NoteCard(
-              key: ValueKey(note.id),
-              note: note,
-              viewMode: isLarge ? 'large-grid' : 'grid',
-              isSelected: selectionProvider.selectedNote?.id == note.id,
-              isHighlighted: _highlightedNoteId == note.id,
-              onTap: () => _openNote(note),
-              onLongPress: () => _showNoteContextMenu(note),
-            );
-          },
+    return Consumer2<SelectionProvider, SettingsProvider>(
+      builder: (context, selectionProvider, settingsProvider, child) {
+        return CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(12),
+              sliver: SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: isLarge ? 0.75 : 0.9,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final note = notes[index];
+                    return NoteCard(
+                      key: ValueKey(note.id),
+                      note: note,
+                      viewMode: isLarge ? 'large-grid' : 'grid',
+                      isSelected: selectionProvider.selectedNote?.id == note.id,
+                      isHighlighted: _highlightedNoteId == note.id,
+                      onTap: () => _openNote(note),
+                      onLongPress: () => _showNoteContextMenu(note),
+                    );
+                  },
+                  childCount: notes.length,
+                ),
+              ),
+            ),
+          ],
         );
       },
     );

@@ -53,13 +53,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
     // 1. Plan Distribution
     int freeCount = 0;
     int premiumCount = 0;
+    int premiumFreeCount = 0;
     for (var p in _profiles) {
       final type = (p['account_type'] ?? 'free').toString().toLowerCase();
-      if (type == 'premium') premiumCount++;
-      else freeCount++;
+      if (type == 'premium') {
+        premiumCount++;
+      } else if (type == 'premium_free') {
+        premiumFreeCount++;
+      } else {
+        freeCount++;
+      }
     }
     final totalUsers = _profiles.length;
-    final paidUsers = premiumCount;
+    final paidUsers = premiumCount; // Only actual paying subscribers
     final conversionRate = totalUsers == 0 ? 0.0 : (paidUsers / totalUsers) * 100;
 
     // 2. Projected MRR (Monthly Recurring Revenue)
@@ -110,33 +116,58 @@ class _ReportsScreenState extends State<ReportsScreen> {
       totalNotes += (p['cached_notes_count'] ?? 0) as int;
     }
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 750;
+    final padding = isMobile ? 12.0 : 32.0;
+
     return AdminScaffold(
       title: 'Reporting Engine',
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(padding),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Live Analytics & Projections', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-                  ElevatedButton.icon(
-                    onPressed: _generateReports,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Recalculate'),
-                  )
-                ],
-              ),
+              isMobile
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Live Analytics & Projections', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _generateReports,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Recalculate'),
+                            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Live Analytics & Projections', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+                    ElevatedButton.icon(
+                      onPressed: _generateReports,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Recalculate'),
+                    )
+                  ],
+                ),
               const SizedBox(height: 8),
               const Text('These reports are calculated on-the-fly using live data from the profiles table.', style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 32),
 
               // REVENUE ROW
               _sectionTitle('Revenue & Growth'),
-              Row(
-                children: [
+              _buildReportRow(
+                isMobile,
+                [
                   _reportCard(
                     title: 'Projected MRR',
                     value: _fmtMoney(mrr),
@@ -144,7 +175,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     icon: Icons.trending_up_rounded,
                     color: Colors.green,
                   ),
-                  const SizedBox(width: 16),
+                  if (!isMobile) const SizedBox(width: 16),
                   _reportCard(
                     title: 'Total LTV Generated',
                     value: _fmtMoney(totalLtv),
@@ -152,7 +183,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     icon: Icons.account_balance_wallet_rounded,
                     color: Colors.blue,
                   ),
-                  const SizedBox(width: 16),
+                  if (!isMobile) const SizedBox(width: 16),
                   _reportCard(
                     title: 'ARPU (Paid)',
                     value: _fmtMoney(arpu),
@@ -166,16 +197,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
               // CONVERSION ROW
               _sectionTitle('User Conversion & Retention'),
-              Row(
-                children: [
+              _buildReportRow(
+                isMobile,
+                [
                   _reportCard(
                     title: 'Paid Conversion Rate',
                     value: '${conversionRate.toStringAsFixed(1)}%',
-                    subtitle: '$paidUsers out of $totalUsers total users are on a paid plan.',
+                    subtitle: '$paidUsers paying subscriber${paidUsers == 1 ? '' : 's'} out of $totalUsers total users (excludes Premium Free grants).',
                     icon: Icons.pie_chart_rounded,
                     color: Colors.orange,
                   ),
-                  const SizedBox(width: 16),
+                  if (!isMobile) const SizedBox(width: 16),
                   _reportCard(
                     title: 'Weekly Active Users (WAU)',
                     value: _fmtNum(activeLast7Days),
@@ -183,7 +215,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     icon: Icons.local_fire_department_rounded,
                     color: Colors.red,
                   ),
-                  const SizedBox(width: 16),
+                  if (!isMobile) const SizedBox(width: 16),
                   _reportCard(
                     title: 'Churn Risk (Ghosted)',
                     value: _fmtNum(atRiskSubscribers),
@@ -197,8 +229,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
               // INFRASTRUCTURE ROW
               _sectionTitle('Infrastructure Liabilities'),
-              Row(
-                children: [
+              _buildReportRow(
+                isMobile,
+                [
                   _reportCard(
                     title: 'Total AI Credits Burned',
                     value: _fmtNum(totalAiCredits),
@@ -206,7 +239,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     icon: Icons.smart_toy_rounded,
                     color: Colors.deepPurple,
                   ),
-                  const SizedBox(width: 16),
+                  if (!isMobile) const SizedBox(width: 16),
                   _reportCard(
                     title: 'Total Notes Synced',
                     value: _fmtNum(totalNotes),
@@ -214,11 +247,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     icon: Icons.edit_document,
                     color: Colors.indigo,
                   ),
-                  const SizedBox(width: 16),
+                  if (!isMobile) const SizedBox(width: 16),
                   _reportCard(
                     title: 'Plan Distribution',
-                    value: '$freeCount Free / $premiumCount Premium',
-                    subtitle: 'Raw count of Free vs Premium users.',
+                    value: '$freeCount Free / $premiumCount Premium / $premiumFreeCount Gifted',
+                    subtitle: 'Free: no subscription. Premium: paying subscribers. Gifted: Premium Free grants.',
                     icon: Icons.layers_rounded,
                     color: Colors.cyan,
                   ),
@@ -231,6 +264,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
+  Widget _buildReportRow(bool isMobile, List<Widget> cards) {
+    if (isMobile) {
+      return Column(
+        children: cards.where((c) => c is! SizedBox).toList(),
+      );
+    } else {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: cards.map((c) => c is SizedBox ? c : Expanded(child: c)).toList(),
+      );
+    }
+  }
+
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -239,35 +285,33 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _reportCard({required String title, required String value, required String subtitle, required IconData icon, required Color color}) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Text(title, style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600, fontSize: 14))),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(value, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -1)),
-            const SizedBox(height: 12),
-            Text(subtitle, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12, height: 1.4)),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(title, style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600, fontSize: 14))),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(value, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -1)),
+          const SizedBox(height: 12),
+          Text(subtitle, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12, height: 1.4)),
+        ],
       ),
     );
   }

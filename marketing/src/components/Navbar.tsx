@@ -8,7 +8,8 @@ const Navbar = () => {
   const APP_URL = 'https://app.inksyncnote.com';
 
   return (
-    <nav className="navbar glass-panel">
+    <nav className="navbar glass-panel" aria-label="Main navigation">
+      <a href="#main-content" className="skip-to-content">Skip to main content</a>
       <div className="container nav-container">
         <Link to="/" className="brand">
           <div className="logo-icon">

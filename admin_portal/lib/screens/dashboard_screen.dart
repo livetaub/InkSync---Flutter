@@ -105,27 +105,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 700;
+    final padding = isMobile ? 16.0 : 32.0;
+
     return AdminScaffold(
       title: 'Overview Dashboard',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh_rounded),
+          onPressed: _isLoading ? null : _fetchDashboardData,
+          tooltip: 'Refresh Dashboard',
+        ),
+      ],
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(padding),
         child: _isLoading 
         ? const Center(child: CircularProgressIndicator())
         : Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                _statCard('Total Users', NumberFormat.decimalPattern().format(_totalUsers), Icons.people_rounded),
-                const SizedBox(width: 24),
-                _statCard('Monthly Revenue', NumberFormat.currency(symbol: '\$').format(_totalRevenue), Icons.attach_money_rounded),
-                const SizedBox(width: 24),
-                _statCard('Notes Synced', NumberFormat.decimalPattern().format(_totalNotes), Icons.notes_rounded),
-              ],
-            ),
-            const SizedBox(height: 48),
+            isMobile
+            ? Column(
+                children: [
+                  Row(children: [_statCard('Total Users', NumberFormat.decimalPattern().format(_totalUsers), Icons.people_rounded)]),
+                  const SizedBox(height: 16),
+                  Row(children: [_statCard('Monthly Revenue', NumberFormat.currency(symbol: '\$').format(_totalRevenue), Icons.attach_money_rounded)]),
+                  const SizedBox(height: 16),
+                  Row(children: [_statCard('Notes Synced', NumberFormat.decimalPattern().format(_totalNotes), Icons.notes_rounded)]),
+                ],
+              )
+            : Row(
+                children: [
+                  _statCard('Total Users', NumberFormat.decimalPattern().format(_totalUsers), Icons.people_rounded),
+                  const SizedBox(width: 24),
+                  _statCard('Monthly Revenue', NumberFormat.currency(symbol: '\$').format(_totalRevenue), Icons.attach_money_rounded),
+                  const SizedBox(width: 24),
+                  _statCard('Notes Synced', NumberFormat.decimalPattern().format(_totalNotes), Icons.notes_rounded),
+                ],
+              ),
+            const SizedBox(height: 32),
             const Text('Cumulative User Growth', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Expanded(
               child: Container(
                 width: double.infinity,

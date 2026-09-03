@@ -152,75 +152,144 @@ class _PricingScreenState extends State<PricingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 700;
+    final padding = isMobile ? 12.0 : 32.0;
+
     return AdminScaffold(
       title: 'Global Pricing Configuration',
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(padding),
         child: _isLoading 
         ? const Center(child: CircularProgressIndicator()) 
         : SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Manage Global Pricing Tiers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-                      SizedBox(height: 8),
-                      Text('Values are synced directly to the global_pricing database table.', style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                  if (!_isEditing)
-                    ElevatedButton.icon(
-                      onPressed: () => setState(() => _isEditing = true),
-                      icon: const Icon(Icons.edit_rounded),
-                      label: const Text('Edit Pricing'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF1F5F9),
-                        foregroundColor: const Color(0xFF0F172A),
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      ),
-                    )
-                  else
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: () {
-                            setState(() => _isEditing = false);
-                            _fetchPricing(); // Reset values
-                          },
-                          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-                        ),
-                        const SizedBox(width: 16),
-                        ElevatedButton.icon(
-                          onPressed: _isSaving ? null : _savePricing,
-                          icon: _isSaving 
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                              : const Icon(Icons.save_rounded),
-                          label: const Text('Save & Lock'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              isMobile
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Manage Global Pricing Tiers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    const Text('Values are synced directly to the global_pricing database table.', style: TextStyle(color: Colors.grey)),
+                    const SizedBox(height: 16),
+                    if (!_isEditing)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => setState(() => _isEditing = true),
+                              icon: const Icon(Icons.edit_rounded),
+                              label: const Text('Edit Pricing'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFF1F5F9),
+                                foregroundColor: const Color(0xFF0F172A),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () {
+                                setState(() => _isEditing = false);
+                                _fetchPricing(); // Reset values
+                              },
+                              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _isSaving ? null : _savePricing,
+                              icon: _isSaving 
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                                  : const Icon(Icons.save_rounded),
+                              label: const Text('Save & Lock'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF10B981),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Manage Global Pricing Tiers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                        SizedBox(height: 8),
+                        Text('Values are synced directly to the global_pricing database table.', style: TextStyle(color: Colors.grey)),
                       ],
-                    )
-                ],
-              ),
+                    ),
+                    if (!_isEditing)
+                      ElevatedButton.icon(
+                        onPressed: () => setState(() => _isEditing = true),
+                        icon: const Icon(Icons.edit_rounded),
+                        label: const Text('Edit Pricing'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          foregroundColor: const Color(0xFF0F172A),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        ),
+                      )
+                    else
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              setState(() => _isEditing = false);
+                              _fetchPricing(); // Reset values
+                            },
+                            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton.icon(
+                            onPressed: _isSaving ? null : _savePricing,
+                            icon: _isSaving 
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                                : const Icon(Icons.save_rounded),
+                            label: const Text('Save & Lock'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            ),
+                          ),
+                        ],
+                      )
+                  ],
+                ),
               const SizedBox(height: 32),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _planColumn('Free', 'free', false),
-                  const SizedBox(width: 24),
-                  _planColumn('Premium', 'premium', true),
-                ],
-              )
+              isMobile
+              ? Column(
+                  children: [
+                    Row(children: [Expanded(child: _planColumn('Free', 'free', false))]),
+                    const SizedBox(height: 24),
+                    Row(children: [Expanded(child: _planColumn('Premium', 'premium', true))]),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _planColumn('Free', 'free', false),
+                    const SizedBox(width: 24),
+                    _planColumn('Premium', 'premium', true),
+                  ],
+                )
             ],
           ),
         ),

@@ -110,7 +110,7 @@ button {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(234, 179, 8, 0.4);
+  box-shadow: 0 12px 40px rgba(5, 208, 125, 0.4);
 }
 
 .btn-outline {
@@ -162,5 +162,34 @@ button {
 @media (max-width: 768px) {
   .grid-cols-2, .grid-cols-3 {
     grid-template-columns: repeat(1, 1fr);
+  }
+}
+
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  padding: 12px 24px;
+  background: var(--primary);
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  z-index: 9999;
+  transition: top 0.2s ease;
+  text-decoration: none;
+}
+
+.skip-to-content:focus {
+  top: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .delay-100, .delay-200, .delay-300, .delay-400 {
+    opacity: 1;
   }
 }

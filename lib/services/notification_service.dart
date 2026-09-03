@@ -102,14 +102,18 @@ class NotificationService {
     final displayTitle = title.isNotEmpty ? title : 'Untitled Note';
 
     const androidDetails = AndroidNotificationDetails(
-      'pinned_notes',
+      'pinned_notes_silent',
       'Pinned Notes',
       channelDescription: 'Notes pinned to the notification bar for quick access',
-      importance: Importance.low,
-      priority: Priority.low,
+      importance: Importance.min,
+      priority: Priority.min,
       ongoing: true, // Cannot be swiped away
       autoCancel: false,
       showWhen: false,
+      playSound: false,
+      enableVibration: false,
+      channelShowBadge: false,
+      silent: true,
       icon: '@mipmap/ic_launcher',
       styleInformation: BigTextStyleInformation(''),
     );

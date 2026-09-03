@@ -1,7 +1,13 @@
 import React from 'react';
+import { useDocumentMetadata } from '../hooks/useDocumentMetadata';
 import './TermsPage.css';
 
 const TermsPage: React.FC = () => {
+  useDocumentMetadata(
+    "Terms of Service & Privacy Policy — InkSync",
+    "Read the terms of service and privacy policy for InkSync. Learn about note security, data guidelines, and service terms."
+  );
+
   return (
     <div className="terms-page">
       <div className="terms-container animate-fade-up">
@@ -142,7 +148,7 @@ const TermsPage: React.FC = () => {
 
             <h4>Data Deletion Without Account Deletion</h4>
             <p>
-              You do not need to delete your entire account to remove specific data. You can delete individual notes or notebooks directly within the InkSync application.
+              You do not need to delete your entire account to remove specific data. You can delete individual notes directly within the InkSync application.
             </p>
             <ul>
               <li><strong>Notes Retention & Deletion Period:</strong> When you delete an individual note, it is moved to a trash state and will be permanently deleted from our servers and backups after a retention period of <strong>30 days</strong>. You can choose to restore the note or empty the trash to delete it immediately.</li>

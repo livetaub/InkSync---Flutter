@@ -20,6 +20,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
   bool _isSavingLimits = false;
   List<Map<String, dynamic>> _variants = [];
   Map<String, Map<String, int>> _analytics = {};
+  /// Per-variant unique user count for paywall_viewed events
+  Map<String, int> _uniqueUsers = {};
   /// Per-variant trigger source breakdown: variantId -> { trigger -> count }
   Map<String, Map<String, int>> _triggerSources = {};
 
@@ -60,13 +62,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
           .from('global_pricing')
           .select();
 
-      // Fetch analytics summary per variant (include metadata for trigger_source)
+      // Fetch analytics summary per variant (include metadata for trigger_source + user_id for unique users)
       final events = await Supabase.instance.client
           .from('paywall_events')
-          .select('variant_id, event_type, metadata');
+          .select('variant_id, event_type, metadata, user_id');
 
       final analytics = <String, Map<String, int>>{};
       final triggers = <String, Map<String, int>>{};
+      final uniqueUserSets = <String, Set<String>>{};
       for (final event in events) {
         final vid = event['variant_id'] as String;
         final type = event['event_type'] as String;
@@ -75,6 +78,13 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
         // Parse trigger_source from metadata on paywall_viewed events
         if (type == 'paywall_viewed') {
+          // Track unique users
+          final uid = event['user_id'] as String?;
+          if (uid != null) {
+            uniqueUserSets.putIfAbsent(vid, () => {});
+            uniqueUserSets[vid]!.add(uid);
+          }
+
           final meta = event['metadata'];
           if (meta is Map) {
             final src = (meta['trigger_source'] ?? 'unknown').toString();
@@ -102,6 +112,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
         setState(() {
           _variants = list;
           _analytics = analytics;
+          _uniqueUsers = uniqueUserSets.map((k, v) => MapEntry(k, v.length));
           _triggerSources = triggers;
           _isLoading = false;
         });
@@ -234,18 +245,22 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 750;
+    final padding = isMobile ? 12.0 : 32.0;
+
     return AdminScaffold(
       title: 'Paywall & A/B Testing',
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(32),
+              padding: EdgeInsets.all(padding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildGlobalLimitsCard(),
+                  _buildGlobalLimitsCard(isMobile),
                   const SizedBox(height: 32),
-                  _buildVariantSection(),
+                  _buildVariantSection(isMobile),
                 ],
               ),
             ),
@@ -254,9 +269,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   // ─── Global Limits Card ─────────────────────────────────────────
 
-  Widget _buildGlobalLimitsCard() {
+  Widget _buildGlobalLimitsCard(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(isMobile ? 16 : 28),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -297,15 +312,23 @@ class _PaywallScreenState extends State<PaywallScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Side-by-side tier columns
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _limitTierColumn('Free Tier', Icons.notes_rounded, const Color(0xFF64748B), _freeNotesLimit, _freeAiCredits)),
-              const SizedBox(width: 20),
-              Expanded(child: _limitTierColumn('Premium Tier', Icons.diamond_rounded, const Color(0xFF10B981), _premiumNotesLimit, _premiumAiCredits)),
-            ],
-          ),
+          // Side-by-side or stacked tier columns
+          isMobile
+          ? Column(
+              children: [
+                Row(children: [Expanded(child: _limitTierColumn('Free Tier', Icons.notes_rounded, const Color(0xFF64748B), _freeNotesLimit, _freeAiCredits))]),
+                const SizedBox(height: 16),
+                Row(children: [Expanded(child: _limitTierColumn('Premium Tier', Icons.diamond_rounded, const Color(0xFF10B981), _premiumNotesLimit, _premiumAiCredits))]),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _limitTierColumn('Free Tier', Icons.notes_rounded, const Color(0xFF64748B), _freeNotesLimit, _freeAiCredits)),
+                const SizedBox(width: 20),
+                Expanded(child: _limitTierColumn('Premium Tier', Icons.diamond_rounded, const Color(0xFF10B981), _premiumNotesLimit, _premiumAiCredits)),
+              ],
+            ),
 
           const SizedBox(height: 20),
           Row(
@@ -427,7 +450,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   // ─── Variant Section ────────────────────────────────────────────
 
-  Widget _buildVariantSection() {
+  Widget _buildVariantSection(bool isMobile) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -458,7 +481,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
         const SizedBox(height: 16),
         _buildTrafficSummary(),
         const SizedBox(height: 20),
-        ..._variants.map((v) => _buildVariantCard(v)),
+        ..._variants.map((v) => _buildVariantCard(v, isMobile)),
       ],
     );
   }
@@ -503,7 +526,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
     );
   }
 
-  Widget _buildVariantCard(Map<String, dynamic> variant) {
+  Widget _buildVariantCard(Map<String, dynamic> variant, bool isMobile) {
     final isActive = variant['is_active'] as bool? ?? false;
     final vid = variant['id'] as String;
     final stats = _analytics[vid] ?? {};
@@ -511,6 +534,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
     final clicks = stats['cta_clicked'] ?? 0;
     final conversions = stats['checkout_completed'] ?? 0;
     final convRate = views > 0 ? (conversions / views * 100).toStringAsFixed(1) : '0.0';
+    final uniqueUsers = _uniqueUsers[vid] ?? 0;
     final triggerMap = _triggerSources[vid] ?? {};
 
     return Container(
@@ -531,12 +555,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                // Status + Name
-                Expanded(
-                  flex: 3,
-                  child: Row(
+            isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
                       Container(
                         width: 8,
@@ -548,63 +571,121 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              variant['variant_name'] as String? ?? 'Unnamed',
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Weight: ${variant['traffic_weight'] ?? 0}  ·  \$${variant['premium_price_monthly'] ?? '?'}/mo',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                            ),
-                          ],
+                        child: Text(
+                          variant['variant_name'] as String? ?? 'Unnamed',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
-                ),
-
-                // Analytics
-                Expanded(
-                  flex: 3,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _miniStat('Views', views),
-                      const SizedBox(width: 20),
+                      _miniStat('Users', uniqueUsers),
                       _miniStat('Clicks', clicks),
-                      const SizedBox(width: 20),
                       _miniStat('Conv.', conversions),
-                      const SizedBox(width: 20),
                       _miniStat('Rate', '$convRate%'),
                     ],
                   ),
-                ),
-
-                // Actions
-                Expanded(
-                  flex: 2,
-                  child: Row(
+                  const SizedBox(height: 16),
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       _actionIcon(Icons.edit_rounded, 'Edit', const Color(0xFF3B82F6), () => context.go('/paywall/edit/${variant['id']}')),
+                      const SizedBox(width: 12),
                       _actionIcon(Icons.copy_rounded, 'Duplicate', const Color(0xFF64748B), () => _duplicateVariant(variant)),
+                      const SizedBox(width: 12),
                       _actionIcon(
                         isActive ? Icons.pause_circle_rounded : Icons.play_circle_rounded,
                         isActive ? 'Deactivate' : 'Activate',
                         isActive ? Colors.orange : const Color(0xFF10B981),
                         () => _toggleActive(variant),
                       ),
+                      const SizedBox(width: 12),
                       _actionIcon(Icons.delete_outline_rounded, 'Delete', const Color(0xFFEF4444), () => _deleteVariant(variant)),
                     ],
                   ),
-                ),
-              ],
-            ),
+                ],
+              )
+            : Row(
+                children: [
+                  // Status + Name
+                  Expanded(
+                    flex: 3,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isActive ? const Color(0xFF10B981) : const Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                variant['variant_name'] as String? ?? 'Unnamed',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Weight: ${variant['traffic_weight'] ?? 0}  ·  \$${variant['premium_price_monthly'] ?? '?'}/mo',
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Analytics
+                  Expanded(
+                    flex: 3,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _miniStat('Views', views),
+                        const SizedBox(width: 20),
+                        _miniStat('Users', uniqueUsers),
+                        const SizedBox(width: 20),
+                        _miniStat('Clicks', clicks),
+                        const SizedBox(width: 20),
+                        _miniStat('Conv.', conversions),
+                        const SizedBox(width: 20),
+                        _miniStat('Rate', '$convRate%'),
+                      ],
+                    ),
+                  ),
+
+                  // Actions
+                  Expanded(
+                    flex: 2,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _actionIcon(Icons.edit_rounded, 'Edit', const Color(0xFF3B82F6), () => context.go('/paywall/edit/${variant['id']}')),
+                        _actionIcon(Icons.copy_rounded, 'Duplicate', const Color(0xFF64748B), () => _duplicateVariant(variant)),
+                        _actionIcon(
+                          isActive ? Icons.pause_circle_rounded : Icons.play_circle_rounded,
+                          isActive ? 'Deactivate' : 'Activate',
+                          isActive ? Colors.orange : const Color(0xFF10B981),
+                          () => _toggleActive(variant),
+                        ),
+                        _actionIcon(Icons.delete_outline_rounded, 'Delete', const Color(0xFFEF4444), () => _deleteVariant(variant)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
 
             // Trigger Source Breakdown
             if (triggerMap.isNotEmpty) ...[

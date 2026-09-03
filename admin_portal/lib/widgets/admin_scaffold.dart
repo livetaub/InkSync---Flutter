@@ -6,8 +6,14 @@ import 'package:url_launcher/url_launcher.dart';
 class AdminScaffold extends StatefulWidget {
   final Widget child;
   final String title;
+  final List<Widget>? actions;
   
-  const AdminScaffold({super.key, required this.child, required this.title});
+  const AdminScaffold({
+    super.key,
+    required this.child,
+    required this.title,
+    this.actions,
+  });
 
   @override
   State<AdminScaffold> createState() => _AdminScaffoldState();
@@ -98,6 +104,7 @@ class _AdminScaffoldState extends State<AdminScaffold> {
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
         actions: [
+          ...?widget.actions,
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.red),
             onPressed: () async {

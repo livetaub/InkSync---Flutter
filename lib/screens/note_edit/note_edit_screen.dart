@@ -10,6 +10,7 @@ import '../../services/notes_service.dart';
 import '../../services/gemini_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/calendar_service.dart';
+import '../../models/calendar_event.dart';
 import '../../services/notification_service.dart';
 import '../../services/tag_service.dart';
 import '../../services/paywall_service.dart';
@@ -1427,7 +1428,7 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
           return Dialog(
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.symmetric(
-              horizontal: 40,
+              horizontal: 16,
               vertical: 60,
             ),
             child: Container(
@@ -1911,222 +1912,205 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                               final collab = _collaborators[index];
                               return Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
+                                  horizontal: 16,
+                                  vertical: 6,
                                 ),
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: collab.accepted
-                                        ? Colors.green.withValues(alpha: 0.15)
-                                        : Colors.red.withValues(alpha: 0.15),
-                                    child: Icon(
-                                      collab.accepted
-                                          ? Icons.check
-                                          : Icons.schedule,
-                                      color: collab.accepted
-                                          ? Colors.green
-                                          : Colors.red,
-                                      size: 18,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    collab.email,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: collab.accepted
-                                          ? Colors.green.shade700
-                                          : null,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    collab.accepted
-                                        ? 'Accepted'
-                                        : 'Pending invite',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: collab.accepted
-                                          ? Colors.green
-                                          : Colors.red,
-                                    ),
-                                  ),
-                                  trailing: _isCreator
-                                      ? Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            // Permission dropdown
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: collab.canEdit
-                                                    ? Colors.blue.withValues(
-                                                        alpha: 0.1,
-                                                      )
-                                                    : Colors.grey.withValues(
-                                                        alpha: 0.1,
-                                                      ),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Row 1: Avatar + Email + Status
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 16,
+                                          backgroundColor: collab.accepted
+                                              ? Colors.green.withValues(alpha: 0.15)
+                                              : Colors.red.withValues(alpha: 0.15),
+                                          child: Icon(
+                                            collab.accepted
+                                                ? Icons.check
+                                                : Icons.schedule,
+                                            color: collab.accepted
+                                                ? Colors.green
+                                                : Colors.red,
+                                            size: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                collab.email,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: collab.accepted
+                                                      ? Colors.green.shade700
+                                                      : null,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
                                               ),
-                                              child: DropdownButtonHideUnderline(
-                                                child: DropdownButton<bool>(
-                                                  value: collab.canEdit,
-                                                  isDense: true,
-                                                  icon: Icon(
-                                                    Icons.keyboard_arrow_down,
-                                                    size: 16,
-                                                    color: collab.canEdit
-                                                        ? Colors.blue
-                                                        : Colors.grey,
-                                                  ),
-                                                  items: [
-                                                    DropdownMenuItem(
-                                                      value: true,
-                                                      child: Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Icon(
-                                                            Icons.edit,
-                                                            size: 12,
-                                                            color: Colors
-                                                                .blue
-                                                                .shade600,
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 4,
-                                                          ),
-                                                          Text(
-                                                            'Editor',
-                                                            style: TextStyle(
-                                                              fontSize: 11,
-                                                              color: Colors
-                                                                  .blue
-                                                                  .shade600,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    DropdownMenuItem(
-                                                      value: false,
-                                                      child: Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Icon(
-                                                            Icons.visibility,
-                                                            size: 12,
-                                                            color: Colors
-                                                                .grey
-                                                                .shade600,
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 4,
-                                                          ),
-                                                          Text(
-                                                            'Viewer',
-                                                            style: TextStyle(
-                                                              fontSize: 11,
-                                                              color: Colors
-                                                                  .grey
-                                                                  .shade600,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                  onChanged: (value) async {
-                                                    if (value != null) {
-                                                      if (_noteId != null) {
-                                                        final authService = Provider.of<AuthService>(context, listen: false);
-                                                        final notesService = NotesService(authService);
-                                                        await notesService.updateCollaboratorPermission(_noteId!, collab.email, value);
-                                                      }
-
-                                                      setState(() {
-                                                        _collaborators[index] =
-                                                            collab.copyWith(
-                                                              canEdit: value,
-                                                            );
-                                                      });
-                                                      setModalState(() {});
-                                                      _onContentChanged();
-                                                    }
-                                                  },
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                collab.accepted
+                                                    ? 'Accepted'
+                                                    : 'Pending invite',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: collab.accepted
+                                                      ? Colors.green
+                                                      : Colors.red,
                                                 ),
                                               ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Non-creator: just show role badge inline
+                                        if (!_isCreator)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
                                             ),
-                                            const SizedBox(width: 4),
-
-                                            // Share invite link button
-                                            IconButton(
-                                              icon: Icon(
-                                                Icons.share_outlined,
-                                                size: 18,
-                                                color: Colors.blue.shade300,
-                                              ),
-                                              tooltip: 'Share invite link',
-                                              onPressed: () => _shareInviteLink(collab.email),
+                                            decoration: BoxDecoration(
+                                              color: collab.canEdit
+                                                  ? Colors.blue.withValues(alpha: 0.1)
+                                                  : Colors.grey.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(8),
                                             ),
-                                            const SizedBox(width: 4),
-
-                                            // Remove button
-                                            IconButton(
-                                              icon: Icon(
-                                                Icons.delete_outline,
-                                                size: 18,
-                                                color: Colors.red.shade300,
+                                            child: Text(
+                                              collab.canEdit ? 'Editor' : 'Viewer',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: collab.canEdit
+                                                    ? Colors.blue
+                                                    : Colors.grey.shade600,
+                                                fontWeight: FontWeight.w500,
                                               ),
-                                              onPressed: () async {
-                                                final confirm = await showDialog<bool>(
-                                                  context: context,
-                                                  builder: (ctx) => AlertDialog(
-                                                    title: const Text(
-                                                      'Remove Collaborator?',
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+
+                                    // Row 2: Action buttons (creator only)
+                                    if (_isCreator) ...[
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          // Permission dropdown
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                                            decoration: BoxDecoration(
+                                              color: collab.canEdit
+                                                  ? Colors.blue.withValues(alpha: 0.1)
+                                                  : Colors.grey.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: DropdownButtonHideUnderline(
+                                              child: DropdownButton<bool>(
+                                                value: collab.canEdit,
+                                                isDense: true,
+                                                icon: Icon(
+                                                  Icons.keyboard_arrow_down,
+                                                  size: 16,
+                                                  color: collab.canEdit ? Colors.blue : Colors.grey,
+                                                ),
+                                                items: [
+                                                  DropdownMenuItem(
+                                                    value: true,
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(Icons.edit, size: 12, color: Colors.blue.shade600),
+                                                        const SizedBox(width: 4),
+                                                        Text('Editor', style: TextStyle(fontSize: 11, color: Colors.blue.shade600, fontWeight: FontWeight.w500)),
+                                                      ],
                                                     ),
-                                                    content: Text(
-                                                      'Are you sure you want to remove ${collab.email} from this note?',
-                                                    ),
-                                                    actions: [
-                                                      TextButton(
-                                                        onPressed: () =>
-                                                            Navigator.pop(
-                                                              ctx,
-                                                              false,
-                                                            ),
-                                                        child: const Text(
-                                                          'Cancel',
-                                                        ),
-                                                      ),
-                                                      TextButton(
-                                                        onPressed: () =>
-                                                            Navigator.pop(
-                                                              ctx,
-                                                              true,
-                                                            ),
-                                                        style:
-                                                            TextButton.styleFrom(
-                                                              foregroundColor:
-                                                                  Colors.red,
-                                                            ),
-                                                        child: const Text(
-                                                          'Remove',
-                                                        ),
-                                                      ),
-                                                    ],
                                                   ),
-                                                );
+                                                  DropdownMenuItem(
+                                                    value: false,
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(Icons.visibility, size: 12, color: Colors.grey.shade600),
+                                                        const SizedBox(width: 4),
+                                                        Text('Viewer', style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                                onChanged: (value) async {
+                                                  if (value != null) {
+                                                    if (_noteId != null) {
+                                                      final authService = Provider.of<AuthService>(context, listen: false);
+                                                      final notesService = NotesService(authService);
+                                                      await notesService.updateCollaboratorPermission(_noteId!, collab.email, value);
+                                                    }
 
-                                                if (confirm == true) {
+                                                    setState(() {
+                                                      _collaborators[index] =
+                                                          collab.copyWith(canEdit: value);
+                                                    });
+                                                    setModalState(() {});
+                                                    _onContentChanged();
+                                                  }
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+
+                                          // Share invite link button
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.share_outlined,
+                                              size: 18,
+                                              color: Colors.blue.shade300,
+                                            ),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            tooltip: 'Share invite link',
+                                            onPressed: () => _shareInviteLink(collab.email),
+                                          ),
+                                          const SizedBox(width: 12),
+
+                                          // Remove button
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.delete_outline,
+                                              size: 18,
+                                              color: Colors.red.shade300,
+                                            ),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            onPressed: () async {
+                                              final confirm = await showDialog<bool>(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  title: const Text('Remove Collaborator?'),
+                                                  content: Text(
+                                                    'Are you sure you want to remove ${collab.email} from this note?',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () => Navigator.pop(ctx, false),
+                                                      child: const Text('Cancel'),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () => Navigator.pop(ctx, true),
+                                                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                                      child: const Text('Remove'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+
+                                              if (confirm == true) {
+                                                try {
                                                   if (_noteId != null) {
                                                     final authService = Provider.of<AuthService>(context, listen: false);
                                                     final notesService = NotesService(authService);
@@ -2134,46 +2118,24 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                                                   }
 
                                                   setState(
-                                                    () => _collaborators
-                                                        .removeAt(index),
+                                                    () => _collaborators.removeAt(index),
                                                   );
                                                   setModalState(() {});
-                                                  _onContentChanged();
+                                                  // Save immediately instead of debounced auto-save
+                                                  await _saveNote();
+                                                } catch (e) {
+                                                  debugPrint('Error removing collaborator: $e');
+                                                  if (mounted) {
+                                                    showErrorSnackBar(context, 'Failed to remove collaborator. Please try again.');
+                                                  }
                                                 }
-                                              },
-                                            ),
-                                          ],
-                                        )
-                                      : Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
+                                              }
+                                            },
                                           ),
-                                          decoration: BoxDecoration(
-                                            color: collab.canEdit
-                                                ? Colors.blue.withValues(
-                                                    alpha: 0.1,
-                                                  )
-                                                : Colors.grey.withValues(
-                                                    alpha: 0.1,
-                                                  ),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            collab.canEdit
-                                                ? 'Editor'
-                                                : 'Viewer',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: collab.canEdit
-                                                  ? Colors.blue
-                                                  : Colors.grey.shade600,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               );
                             }),
@@ -2665,129 +2627,60 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
 
   void _addToCalendar() async {
     await _saveNote();
-
-    final titleController = TextEditingController(text: _titleController.text);
-    final dateController = TextEditingController();
-    DateTime selectedDate = DateTime.now();
-
     if (!mounted) return;
-    final isDesktop = MediaQuery.of(context).size.width > 800;
 
-    showAdaptiveModal(
+    // Step 1: Open date picker
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppTheme.primaryColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (selectedDate == null || !mounted) return;
+
+    // Step 2: Open event form dialog with pre-filled data
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final calendarService = CalendarService(authService);
+
+    final noteTitle = _titleController.text.isNotEmpty
+        ? _titleController.text
+        : 'Untitled Note';
+
+    // Create a pre-filled event
+    final event = CalendarEvent(
+      userId: authService.currentUserId!,
+      title: noteTitle,
+      eventDate: selectedDate,
+      linkedNoteId: _noteId,
+      createdAt: DateTime.now().toUtc(),
+    );
+
+    // Show the event creation dialog from CalendarScreen
+    if (!mounted) return;
+    final result = await showModalBottomSheet<CalendarEvent>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: isDesktop ? null : Theme.of(context).scaffoldBackgroundColor,
-      child: Builder(
-        builder: (ctx) {
-          final isDark = Theme.of(ctx).brightness == Brightness.dark;
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDesktop
-                    ? (isDark ? const Color(0xFF1A1D21) : Colors.white)
-                    : Theme.of(ctx).scaffoldBackgroundColor,
-                borderRadius: isDesktop
-                    ? BorderRadius.circular(20)
-                    : const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!isDesktop) ...[
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white24 : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                  const Text(
-                    'Add to Calendar',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Event Title',
-                      hintText: 'Enter event title',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  InkWell(
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: ctx,
-                        initialDate: selectedDate,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (date != null) {
-                        selectedDate = date;
-                        dateController.text =
-                            '${date.day}/${date.month}/${date.year}';
-                      }
-                    },
-                    child: TextField(
-                      controller: dateController,
-                      enabled: false,
-                      decoration: const InputDecoration(
-                        labelText: 'Date',
-                        hintText: 'Select date',
-                        suffixIcon: Icon(Icons.calendar_today),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (titleController.text.isEmpty) {
-                          showErrorSnackBar(ctx, 'Please enter a title');
-                          return;
-                        }
-
-                        final authService = Provider.of<AuthService>(
-                          ctx,
-                          listen: false,
-                        );
-                        final calendarService = CalendarService(authService);
-
-                        await calendarService.createEvent(
-                          CalendarEvent(
-                            title: titleController.text,
-                            date: selectedDate,
-                            isAllDay: true,
-                            color: _color,
-                          ),
-                        );
-
-                        if (mounted) {
-                          Navigator.pop(ctx);
-                          showSuccessSnackBar(context, 'Event added to calendar!');
-                        }
-                      },
-                      child: const Text('Add Event'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AddToCalendarSheet(
+        event: event,
+        calendarService: calendarService,
       ),
     );
+
+    if (result != null && mounted) {
+      showSuccessSnackBar(context, 'Added to calendar');
+    }
   }
 
   void _convertNoteType() {
@@ -4161,9 +4054,9 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
               case 'tags':
                 _showTagsSheet();
                 break;
-              case 'calendar':
-                _addToCalendar();
-                break;
+                case 'calendar':
+                  _addToCalendar();
+                  break;
               case 'convert':
                 _convertNoteType();
                 break;
@@ -4631,33 +4524,33 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                       _buildViewOnlyBanner(),
                       _buildMetadataAndTags(isDark),
                       // Content area (body)
-                      GestureDetector(
-                        behavior: HitTestBehavior.deferToChild,
-                        onTap: () {
-                          if (!_canUserEdit || !_isEditing) return;
-                          // Already in edit mode — if body doesn't have focus,
-                          // switch focus to body and place cursor at end of text
-                          if (!_contentFocusNode.hasFocus) {
-                            _contentFocusNode.requestFocus();
-                            Future.delayed(const Duration(milliseconds: 50), () {
-                              if (mounted) {
-                                _contentController.selection = TextSelection.collapsed(
-                                  offset: _contentController.text.length,
-                                );
-                              }
-                            });
-                          }
-                        },
-                        child: Container(
+                      Container(
                         constraints: BoxConstraints(minHeight: constraints.maxHeight),
                         child: Stack(
                           children: [
                             Positioned.fill(
-                              child: CustomPaint(
-                                painter: LinedPaperPainter(
-                                  lineColor: lineColor,
-                                  lineHeight: lineHeight,
-                                  topPadding: -5.0,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  if (!_canUserEdit || !_isEditing) return;
+                                  // Switch focus to body and place cursor at end of text
+                                  if (!_contentFocusNode.hasFocus) {
+                                    _contentFocusNode.requestFocus();
+                                    Future.delayed(const Duration(milliseconds: 50), () {
+                                      if (mounted) {
+                                        _contentController.selection = TextSelection.collapsed(
+                                          offset: _contentController.text.length,
+                                        );
+                                      }
+                                    });
+                                  }
+                                },
+                                child: CustomPaint(
+                                  painter: LinedPaperPainter(
+                                    lineColor: lineColor,
+                                    lineHeight: lineHeight,
+                                    topPadding: -5.0,
+                                  ),
                                 ),
                               ),
                             ),
@@ -4732,7 +4625,6 @@ class _NoteEditScreenState extends State<NoteEditScreen> {
                             ),
                           ],
                         ),
-                      ),
                       ),
                     ],
                   ),
@@ -5113,8 +5005,12 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isDesktop = MediaQuery.of(context).size.width > 800;
+    final hasResult = _resultController.text.isNotEmpty;
+    final showExpandedView = _isProcessing || _error != null || hasResult;
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: isDesktop
@@ -5122,12 +5018,17 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
             : const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.all(24),
-      height: isDesktop 
-          ? MediaQuery.of(context).size.height * 0.7 
-          : MediaQuery.of(context).size.height * 0.75,
+      // Compact when just showing tones, expanded when showing results
+      height: showExpandedView
+          ? (isDesktop
+              ? MediaQuery.of(context).size.height * 0.7
+              : MediaQuery.of(context).size.height * 0.75)
+          : null,
       child: Column(
+        mainAxisSize: showExpandedView ? MainAxisSize.max : MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Drag handle (mobile only)
           if (!isDesktop) ...[
             Center(
               child: Container(
@@ -5142,6 +5043,7 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
             const SizedBox(height: 16),
           ],
 
+          // Header
           Row(
             children: [
               Container(
@@ -5184,6 +5086,7 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
           ),
           const SizedBox(height: 20),
 
+          // Helper message
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -5203,7 +5106,9 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    "I'll magically rewrite just the text you've selected.",
+                    hasResult
+                        ? "You can edit the result below, then replace your selection."
+                        : "Pick a tone below to magically rewrite your selected text.",
                     style: TextStyle(
                       fontSize: 13,
                       color: isDark ? Colors.blue.shade200 : Colors.blue.shade800,
@@ -5216,6 +5121,7 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
           ),
           const SizedBox(height: 20),
 
+          // Tone selector
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -5224,7 +5130,7 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
               return ChoiceChip(
                 label: Text('${tone['icon']} ${tone['label']}'),
                 selected: isSelected,
-                onSelected: (_) => _processText(tone['id']!),
+                onSelected: _isProcessing ? null : (_) => _processText(tone['id']!),
                 selectedColor: isDark
                     ? AppTheme.primaryColor.withValues(alpha: 0.25)
                     : AppTheme.primaryColor.withValues(alpha: 0.15),
@@ -5251,168 +5157,593 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
               );
             }).toList(),
           ),
-          const SizedBox(height: 20),
 
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.05)
-                    : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isDark ? Colors.white12 : Colors.grey.shade200,
+          // Expanded result area (only shown after a tone is selected)
+          if (showExpandedView) ...[
+            const SizedBox(height: 20),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : Colors.grey.shade200,
+                  ),
                 ),
-              ),
-              child: _isProcessing
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 60,
-                            height: 60,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                AppTheme.primaryColor.withValues(alpha: 0.7),
+                child: _isProcessing
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 60,
+                              height: 60,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppTheme.primaryColor.withValues(alpha: 0.7),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'Enhancing your text...',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: isDark ? Colors.white54 : AppTheme.textMuted,
+                            const SizedBox(height: 20),
+                            Text(
+                              'Enhancing your text...',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: isDark ? Colors.white54 : AppTheme.textMuted,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'This may take a few seconds',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.white30 : Colors.grey.shade400,
+                            const SizedBox(height: 8),
+                            Text(
+                              'This may take a few seconds',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white30 : Colors.grey.shade400,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : _error != null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            color: Colors.red.shade400,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 12),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Text(
-                              _error!.replaceAll('Exception: ', ''),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.red.shade700),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : _resultController.text.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.auto_awesome_outlined,
-                            size: 48,
-                            color: isDark
-                                ? Colors.white24
-                                : Colors.grey.shade300,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Select a tone above to magically transform your text',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: isDark
-                                  ? Colors.white38
-                                  : AppTheme.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : SingleChildScrollView(
-                      child: TextField(
-                        controller: _resultController,
-                        maxLines: null,
-                        style: TextStyle(
-                          fontSize: 16,
-                          height: 1.6,
-                          color: isDark ? Colors.white : AppTheme.textPrimary,
+                          ],
                         ),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          hintText: 'Edit the suggestion...',
+                      )
+                    : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red.shade400,
+                              size: 48,
+                            ),
+                            const SizedBox(height: 12),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                _error!.replaceAll('Exception: ', ''),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.red.shade700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        child: TextField(
+                          controller: _resultController,
+                          maxLines: null,
+                          style: TextStyle(
+                            fontSize: 16,
+                            height: 1.6,
+                            color: isDark ? Colors.white : AppTheme.textPrimary,
+                          ),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Edit the suggestion...',
+                          ),
                         ),
                       ),
-                    ),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          if (_resultController.text.isNotEmpty)
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _selectedTone != null
-                        ? () => _processText(_selectedTone!)
-                        : null,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Rerun'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+            // Action buttons (only when result is ready)
+            if (hasResult)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _selectedTone != null
+                          ? () => _processText(_selectedTone!)
+                          : null,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Rerun'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      widget.onInsert(_resultController.text);
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.check),
-                    label: const Text(
-                      'Replace Selection',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        widget.onInsert(_resultController.text);
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.check),
+                      label: const Text(
+                        'Replace Selection',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                     ),
+                  ),
+                ],
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Bottom sheet for adding a note to the calendar with event details
+class _AddToCalendarSheet extends StatefulWidget {
+  final CalendarEvent event;
+  final CalendarService calendarService;
+
+  const _AddToCalendarSheet({
+    required this.event,
+    required this.calendarService,
+  });
+
+  @override
+  State<_AddToCalendarSheet> createState() => _AddToCalendarSheetState();
+}
+
+class _AddToCalendarSheetState extends State<_AddToCalendarSheet> {
+  late TextEditingController _titleController;
+  late TextEditingController _noteBodyController;
+  late DateTime _selectedDate;
+  String? _eventTime;
+  bool _isAllDay = true;
+  String? _reminder;
+  bool _hasReminder = false;
+  bool _isSaving = false;
+
+  // Recurring
+  bool _isRecurring = false;
+  String _recurrenceMode = 'weekly'; // 'weekly' or 'monthly'
+  List<int> _selectedWeekDays = [];
+  int? _selectedMonthDay;
+
+  static const _reminderOptions = [
+    {'value': 'at_time', 'label': 'On event time'},
+    {'value': '30_min', 'label': '30 minutes before'},
+    {'value': '1_hour', 'label': '1 hour before'},
+    {'value': '2_hours', 'label': '2 hours before'},
+    {'value': 'morning', 'label': 'Morning of event (8:00 AM)'},
+  ];
+
+  static const _weekDayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.event.title);
+    _noteBodyController = TextEditingController(text: widget.event.noteBody ?? '');
+    _selectedDate = widget.event.eventDate;
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _noteBodyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_titleController.text.trim().isEmpty) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final event = widget.event.copyWith(
+        title: _titleController.text.trim(),
+        noteBody: _noteBodyController.text.trim().isEmpty ? null : _noteBodyController.text.trim(),
+        eventDate: _selectedDate,
+        eventTime: _isAllDay ? null : _eventTime,
+        reminder: _hasReminder ? _reminder : null,
+        recurrenceType: _isRecurring ? _recurrenceMode : null,
+        recurrenceDays: _isRecurring
+            ? (_recurrenceMode == 'weekly' ? _selectedWeekDays : [if (_selectedMonthDay != null) _selectedMonthDay!])
+            : [],
+      );
+
+      await widget.calendarService.createEvent(event);
+      if (mounted) Navigator.pop(context, event);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1D21) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 16, 24, 16 + bottomInset),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Header
+            Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined, color: AppTheme.primaryColor),
+                const SizedBox(width: 12),
+                Text(
+                  'Add to Calendar',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppTheme.textPrimary,
                   ),
                 ),
               ],
             ),
-        ],
+
+            // Linked note indicator
+            if (widget.event.linkedNoteId != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.link, size: 16, color: AppTheme.primaryColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Linked to note',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+
+            // Title
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                labelText: 'Event Title',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Date
+            GestureDetector(
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedDate,
+                  firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                  lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                );
+                if (date != null) setState(() => _selectedDate = date);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today, size: 18),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                      style: TextStyle(
+                        color: isDark ? Colors.white : AppTheme.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Time toggle
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('All day'),
+              value: _isAllDay,
+              onChanged: (v) {
+                setState(() {
+                  _isAllDay = v;
+                  if (!v && _eventTime == null) _eventTime = '09:00';
+                });
+              },
+            ),
+
+            if (!_isAllDay) ...[
+              GestureDetector(
+                onTap: () async {
+                  final parts = (_eventTime ?? '09:00').split(':');
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])),
+                  );
+                  if (time != null) {
+                    setState(() {
+                      _eventTime = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                    });
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.access_time, size: 18),
+                      const SizedBox(width: 12),
+                      Text(_eventTime ?? '09:00'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Reminder toggle
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Reminder'),
+              value: _hasReminder,
+              onChanged: (v) {
+                setState(() {
+                  _hasReminder = v;
+                  if (v && _reminder == null) _reminder = 'at_time';
+                });
+              },
+            ),
+
+            if (_hasReminder)
+              DropdownButtonFormField<String>(
+                value: _reminder,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                items: _reminderOptions.map((opt) {
+                  return DropdownMenuItem(
+                    value: opt['value'] as String,
+                    child: Text(opt['label'] as String),
+                  );
+                }).toList(),
+                onChanged: (v) => setState(() => _reminder = v),
+              ),
+
+            const SizedBox(height: 8),
+
+            // Recurring toggle
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Recurring'),
+              value: _isRecurring,
+              onChanged: (v) => setState(() => _isRecurring = v),
+            ),
+
+            if (_isRecurring) ...[
+              // Mode selector
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _recurrenceMode = 'weekly'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _recurrenceMode == 'weekly'
+                              ? AppTheme.primaryColor.withValues(alpha: 0.15)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _recurrenceMode == 'weekly'
+                                ? AppTheme.primaryColor
+                                : (isDark ? Colors.white24 : Colors.grey.shade300),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Day of Week',
+                            style: TextStyle(
+                              color: _recurrenceMode == 'weekly' ? AppTheme.primaryColor : null,
+                              fontWeight: _recurrenceMode == 'weekly' ? FontWeight.w600 : null,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _recurrenceMode = 'monthly'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _recurrenceMode == 'monthly'
+                              ? AppTheme.primaryColor.withValues(alpha: 0.15)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _recurrenceMode == 'monthly'
+                                ? AppTheme.primaryColor
+                                : (isDark ? Colors.white24 : Colors.grey.shade300),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Day of Month',
+                            style: TextStyle(
+                              color: _recurrenceMode == 'monthly' ? AppTheme.primaryColor : null,
+                              fontWeight: _recurrenceMode == 'monthly' ? FontWeight.w600 : null,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              if (_recurrenceMode == 'weekly')
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(7, (i) {
+                    final selected = _selectedWeekDays.contains(i);
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (selected) {
+                            _selectedWeekDays.remove(i);
+                          } else {
+                            _selectedWeekDays.add(i);
+                          }
+                        });
+                      },
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: selected ? AppTheme.primaryColor : Colors.transparent,
+                          border: Border.all(
+                            color: selected ? AppTheme.primaryColor : (isDark ? Colors.white24 : Colors.grey.shade300),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            _weekDayLabels[i],
+                            style: TextStyle(
+                              color: selected ? Colors.white : (isDark ? Colors.white70 : AppTheme.textSecondary),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+
+              if (_recurrenceMode == 'monthly')
+                DropdownButtonFormField<int>(
+                  value: _selectedMonthDay,
+                  hint: const Text('Select day of month'),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  items: List.generate(31, (i) {
+                    return DropdownMenuItem(value: i + 1, child: Text('Day ${i + 1}'));
+                  }),
+                  onChanged: (v) => setState(() => _selectedMonthDay = v),
+                ),
+
+              const SizedBox(height: 8),
+            ],
+
+            // Note body
+            const SizedBox(height: 8),
+            TextField(
+              controller: _noteBodyController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'Note (optional)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Save button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isSaving ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _isSaving
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Add to Calendar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

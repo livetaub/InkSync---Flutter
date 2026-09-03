@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/admin_scaffold.dart';
 
 class UsersScreen extends StatefulWidget {
@@ -28,7 +29,35 @@ class _UsersScreenState extends State<UsersScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchUsers();
+    _loadSavedSortSettings().then((_) => _fetchUsers());
+  }
+
+  Future<void> _loadSavedSortSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedColIndex = prefs.getInt('admin_users_sort_column_index');
+      final savedAscending = prefs.getBool('admin_users_sort_ascending');
+      
+      if (mounted && savedColIndex != null && savedAscending != null) {
+        setState(() {
+          _sortColumnIndex = savedColIndex;
+          _sortDataIndex = savedColIndex - 1;
+          _isSortAscending = savedAscending;
+        });
+      }
+    } catch (e) {
+      debugPrint('[UsersScreen] Error loading sort settings: $e');
+    }
+  }
+
+  Future<void> _saveSortSettings(int columnIndex, bool ascending) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('admin_users_sort_column_index', columnIndex);
+      await prefs.setBool('admin_users_sort_ascending', ascending);
+    } catch (e) {
+      debugPrint('[UsersScreen] Error saving sort settings: $e');
+    }
   }
 
   @override
@@ -128,6 +157,7 @@ class _UsersScreenState extends State<UsersScreen> {
       _isSortAscending = ascending;
       _applyFiltersAndSort();
     });
+    _saveSortSettings(columnIndex, ascending);
   }
 
   String _formatDate(String? isoDate) {
@@ -207,19 +237,210 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
+  String _getSortLabel() {
+    switch (_sortColumnIndex) {
+      case 12:
+        return _isSortAscending ? 'Created At (Oldest)' : 'Created At (Newest)';
+      case 2:
+        return _isSortAscending ? 'Email (A-Z)' : 'Email (Z-A)';
+      case 9:
+        return _isSortAscending ? 'Notes (Low-High)' : 'Notes (High-Low)';
+      case 6:
+        return _isSortAscending ? 'LTV (Low-High)' : 'LTV (High-Low)';
+      case 11:
+        return _isSortAscending ? 'Last Active (Oldest)' : 'Last Active (Recent)';
+      default:
+        return 'Sort Options';
+    }
+  }
+
+  Widget _buildSortButton() {
+    return PopupMenuButton<Map<String, dynamic>>(
+      offset: const Offset(0, 40),
+      onSelected: (option) {
+        _onSort(option['col'] as int, option['asc'] as bool);
+      },
+      itemBuilder: (ctx) => [
+        _buildSortMenuItem('Created At (Newest)', 12, false),
+        _buildSortMenuItem('Created At (Oldest)', 12, true),
+        _buildSortMenuItem('Email (A-Z)', 2, true),
+        _buildSortMenuItem('Email (Z-A)', 2, false),
+        _buildSortMenuItem('Notes (High-Low)', 9, false),
+        _buildSortMenuItem('Notes (Low-High)', 9, true),
+        _buildSortMenuItem('LTV (High-Low)', 6, false),
+        _buildSortMenuItem('LTV (Low-High)', 6, true),
+        _buildSortMenuItem('Last Active (Recent)', 11, false),
+        _buildSortMenuItem('Last Active (Oldest)', 11, true),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.sort_rounded, size: 18, color: Colors.black87),
+            const SizedBox(width: 8),
+            Text(
+              _getSortLabel(),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_drop_down_rounded, size: 18, color: Colors.black54),
+          ],
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<Map<String, dynamic>> _buildSortMenuItem(String label, int col, bool asc) {
+    final isSelected = _sortColumnIndex == col && _isSortAscending == asc;
+    return PopupMenuItem<Map<String, dynamic>>(
+      value: {'col': col, 'asc': asc},
+      child: Row(
+        children: [
+          Icon(
+            isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+            size: 16,
+            color: isSelected ? const Color(0xFF3B82F6) : Colors.grey,
+          ),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileUserCard(Map<String, dynamic> user) {
+    final email = user['email'] ?? 'Unknown';
+    final notesCount = user['cached_notes_count'] ?? 0;
+    final createdAt = _formatDate(user['created_at']);
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          title: Text(
+            email,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.black87),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _planBadge(user['account_type']),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.notes_rounded, size: 14, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text('$notesCount notes', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+                Text(
+                  'Created: $createdAt',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  _buildDetailRow('UUID (Full)', user['id'] ?? 'N/A'),
+                  _buildDetailRow('Account Status', user['account_status'] ?? 'N/A'),
+                  _buildDetailRow('Billing Cycle', user['billing_cycle'] ?? 'N/A'),
+                  _buildDetailRow('LTV', _formatCurrency(user['lifetime_value'])),
+                  _buildDetailRow('AI Credits', '${user['ai_credits_used'] ?? 0}'),
+                  _buildDetailRow('AI Cost', _formatCurrency(_calcAiCost(user))),
+                  _buildDetailRow('Storage', _formatBytes(user['cached_storage_bytes'])),
+                  _buildDetailRow('Last Active', _formatDate(user['last_active_at'])),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => _grantPremiumFree(user['id']),
+                        icon: const Icon(Icons.card_membership_rounded, size: 16),
+                        label: const Text('Grant Premium Free', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8B5CF6),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 35,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF64748B)),
+            ),
+          ),
+          Expanded(
+            flex: 65,
+            child: SelectableText(
+              value,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A), fontFamily: 'monospace'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 750;
+    final padding = isMobile ? 12.0 : 24.0;
+
     return AdminScaffold(
       title: 'User Management Engine',
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(padding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
+            isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
                     onChanged: (val) {
                       setState(() {
                         _searchQuery = val;
@@ -235,18 +456,58 @@ class _UsersScreenState extends State<UsersScreen> {
                       fillColor: Colors.white,
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: _fetchUsers,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Reload DB'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: _buildSortButton()),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _fetchUsers,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Reload DB'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                )
-              ],
-            ),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val;
+                          _applyFiltersAndSort();
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        hintText: 'Filter by UUID or Email...',
+                        prefixIcon: Icon(Icons.filter_alt_rounded),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  _buildSortButton(),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: _fetchUsers,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Reload DB'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    ),
+                  )
+                ],
+              ),
             const SizedBox(height: 16),
             Expanded(
               child: Container(
@@ -258,70 +519,79 @@ class _UsersScreenState extends State<UsersScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : _filteredUsers.isEmpty
                         ? const Center(child: Text('No records match your filter.'))
-                        : Scrollbar(
-                            controller: _horizontalScrollController,
-                            thumbVisibility: true,
-                            trackVisibility: true,
-                            child: SingleChildScrollView(
-                              controller: _horizontalScrollController,
-                              scrollDirection: Axis.horizontal,
-                              child: SingleChildScrollView(
-                                controller: _verticalScrollController,
-                                child: DataTable(
-                                  sortColumnIndex: _sortColumnIndex,
-                                  sortAscending: _isSortAscending,
-                                  dataRowMinHeight: 32,
-                                  dataRowMaxHeight: 48,
-                                  headingRowHeight: 48,
-                                  headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-                                  border: TableBorder.all(color: Colors.grey.shade200, width: 1),
-                                   columns: [
-                                    DataColumn(label: const Text('Actions')),
-                                    DataColumn(label: const Text('UUID (Short)'), onSort: _onSort),
-                                    DataColumn(label: const Text('Email'), onSort: _onSort),
-                                    DataColumn(label: const Text('Status'), onSort: _onSort),
-                                    DataColumn(label: const Text('Plan'), onSort: _onSort),
-                                    DataColumn(label: const Text('Cycle'), onSort: _onSort),
-                                    DataColumn(label: const Text('LTV'), numeric: true, onSort: _onSort),
-                                    DataColumn(label: const Tooltip(message: 'Lifetime AI writing assist invocations', child: Text('AI Credits')), numeric: true, onSort: _onSort),
-                                    DataColumn(label: const Tooltip(message: 'Estimated cost based on actual token usage', child: Text('AI Cost')), numeric: true, onSort: _onSort),
-                                    DataColumn(label: const Text('Notes'), numeric: true, onSort: _onSort),
-                                    DataColumn(label: const Text('Storage'), numeric: true, onSort: _onSort),
-                                    DataColumn(label: const Text('Last Active'), onSort: _onSort),
-                                    DataColumn(label: const Text('Created At'), onSort: _onSort),
-                                  ],
-                                rows: _filteredUsers.map((user) {
-                                  final shortId = (user['id'] ?? '').toString().split('-').first;
-                                  return DataRow(cells: [
-                                    DataCell(
-                                      PopupMenuButton<String>(
-                                        icon: const Icon(Icons.more_vert_rounded, size: 20),
-                                        onSelected: (val) {
-                                          if (val == 'premium_free') _grantPremiumFree(user['id']);
-                                        },
-                                        itemBuilder: (ctx) => [
-                                          const PopupMenuItem(value: 'premium_free', child: Text('Grant Premium Free')),
-                                        ],
-                                      )
+                        : isMobile
+                            ? ListView.builder(
+                                padding: const EdgeInsets.all(8),
+                                itemCount: _filteredUsers.length,
+                                itemBuilder: (ctx, index) {
+                                  final user = _filteredUsers[index];
+                                  return _buildMobileUserCard(user);
+                                },
+                              )
+                            : Scrollbar(
+                                controller: _horizontalScrollController,
+                                thumbVisibility: true,
+                                trackVisibility: true,
+                                child: SingleChildScrollView(
+                                  controller: _horizontalScrollController,
+                                  scrollDirection: Axis.horizontal,
+                                  child: SingleChildScrollView(
+                                    controller: _verticalScrollController,
+                                    child: DataTable(
+                                      sortColumnIndex: _sortColumnIndex,
+                                      sortAscending: _isSortAscending,
+                                      dataRowMinHeight: 32,
+                                      dataRowMaxHeight: 48,
+                                      headingRowHeight: 48,
+                                      headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                                      border: TableBorder.all(color: Colors.grey.shade200, width: 1),
+                                      columns: const [
+                                        DataColumn(label: Text('Actions')),
+                                        DataColumn(label: Text('UUID (Short)')),
+                                        DataColumn(label: Text('Email')),
+                                        DataColumn(label: Text('Status')),
+                                        DataColumn(label: Text('Plan')),
+                                        DataColumn(label: Text('Cycle')),
+                                        DataColumn(label: Text('LTV'), numeric: true),
+                                        DataColumn(label: Tooltip(message: 'Lifetime AI writing assist invocations', child: Text('AI Credits')), numeric: true),
+                                        DataColumn(label: Tooltip(message: 'Estimated cost based on actual token usage', child: Text('AI Cost')), numeric: true),
+                                        DataColumn(label: Text('Notes'), numeric: true),
+                                        DataColumn(label: Text('Storage'), numeric: true),
+                                        DataColumn(label: Text('Last Active')),
+                                        DataColumn(label: Text('Created At')),
+                                      ],
+                                      rows: _filteredUsers.map((user) {
+                                        final shortId = (user['id'] ?? '').toString().split('-').first;
+                                        return DataRow(cells: [
+                                          DataCell(
+                                            PopupMenuButton<String>(
+                                              icon: const Icon(Icons.more_vert_rounded, size: 20),
+                                              onSelected: (val) {
+                                                if (val == 'premium_free') _grantPremiumFree(user['id']);
+                                              },
+                                              itemBuilder: (ctx) => [
+                                                const PopupMenuItem(value: 'premium_free', child: Text('Grant Premium Free')),
+                                              ],
+                                            )
+                                          ),
+                                          DataCell(Text(shortId, style: const TextStyle(fontFamily: 'monospace', color: Colors.grey))),
+                                          DataCell(SelectableText(user['email'] ?? 'Unknown')),
+                                          DataCell(Text(user['account_status'] ?? 'N/A')),
+                                          DataCell(_planBadge(user['account_type'])),
+                                          DataCell(Text(user['billing_cycle'] ?? 'N/A')),
+                                          DataCell(Text(_formatCurrency(user['lifetime_value']))),
+                                          DataCell(Text('${user['ai_credits_used'] ?? 0}')),
+                                          DataCell(Text(_formatCurrency(_calcAiCost(user)))),
+                                          DataCell(Text('${user['cached_notes_count'] ?? 0}')),
+                                          DataCell(Text(_formatBytes(user['cached_storage_bytes']))),
+                                          DataCell(Text(_formatDate(user['last_active_at']))),
+                                          DataCell(Text(_formatDate(user['created_at']))),
+                                        ]);
+                                      }).toList(),
                                     ),
-                                    DataCell(Text(shortId, style: const TextStyle(fontFamily: 'monospace', color: Colors.grey))),
-                                    DataCell(SelectableText(user['email'] ?? 'Unknown')),
-                                    DataCell(Text(user['account_status'] ?? 'N/A')),
-                                    DataCell(_planBadge(user['account_type'])),
-                                    DataCell(Text(user['billing_cycle'] ?? 'N/A')),
-                                    DataCell(Text(_formatCurrency(user['lifetime_value']))),
-                                    DataCell(Text('${user['ai_credits_used'] ?? 0}')),
-                                    DataCell(Text(_formatCurrency(_calcAiCost(user)))),
-                                    DataCell(Text('${user['cached_notes_count'] ?? 0}')),
-                                    DataCell(Text(_formatBytes(user['cached_storage_bytes']))),
-                                    DataCell(Text(_formatDate(user['last_active_at']))),
-                                    DataCell(Text(_formatDate(user['created_at']))),
-                                  ]);
-                                }).toList(),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
               ),
             ),
           ],

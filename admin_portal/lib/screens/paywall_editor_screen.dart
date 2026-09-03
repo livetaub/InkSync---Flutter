@@ -22,6 +22,7 @@ class _PaywallEditorScreenState extends State<PaywallEditorScreen> {
   bool _isSaving = false;
   bool _isMobilePreview = true;
   bool get _isNew => widget.variantId == null;
+  int _activeTab = 0; // 0 = Form, 1 = Preview
 
   // Controllers
   late final _EditorControllers _c;
@@ -134,6 +135,9 @@ class _PaywallEditorScreenState extends State<PaywallEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 800;
+
     return AdminScaffold(
       title: _isNew ? 'Create Variant' : 'Edit Variant',
       child: _isLoading
@@ -142,25 +146,86 @@ class _PaywallEditorScreenState extends State<PaywallEditorScreen> {
               children: [
                 // Top bar with actions
                 _buildTopBar(),
-                // Split pane
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left: Form
-                      Expanded(
-                        flex: 45,
-                        child: _buildForm(),
-                      ),
-                      // Divider
-                      Container(width: 1, color: Colors.black.withValues(alpha: 0.06)),
-                      // Right: Preview
-                      Expanded(
-                        flex: 55,
-                        child: _buildPreviewPanel(),
-                      ),
-                    ],
+                if (isMobile)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border(bottom: BorderSide(color: Colors.black.withValues(alpha: 0.06))),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setState(() => _activeTab = 0),
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: _activeTab == 0 ? const Color(0xFF3B82F6) : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                'Edit Details',
+                                style: TextStyle(
+                                  fontWeight: _activeTab == 0 ? FontWeight.w700 : FontWeight.w500,
+                                  color: _activeTab == 0 ? const Color(0xFF3B82F6) : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setState(() => _activeTab = 1),
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: _activeTab == 1 ? const Color(0xFF3B82F6) : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                'Live Preview',
+                                style: TextStyle(
+                                  fontWeight: _activeTab == 1 ? FontWeight.w700 : FontWeight.w500,
+                                  color: _activeTab == 1 ? const Color(0xFF3B82F6) : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                // Tab content or split pane
+                Expanded(
+                  child: isMobile
+                      ? (_activeTab == 0 ? _buildForm() : _buildPreviewPanel())
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Left: Form
+                            Expanded(
+                              flex: 45,
+                              child: _buildForm(),
+                            ),
+                            // Divider
+                            Container(width: 1, color: Colors.black.withValues(alpha: 0.06)),
+                            // Right: Preview
+                            Expanded(
+                              flex: 55,
+                              child: _buildPreviewPanel(),
+                            ),
+                          ],
+                        ),
                 ),
               ],
             ),
@@ -222,68 +287,105 @@ class _PaywallEditorScreenState extends State<PaywallEditorScreen> {
   Widget _buildForm() {
     return Container(
       color: const Color(0xFFFAFAFA),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Headline & Subheadline
-              Row(children: [
-                Expanded(child: _field('Page Headline', _c.pageHeadline)),
-                const SizedBox(width: 12),
-                Expanded(child: _field('Page Subheadline', _c.pageSubheadline)),
-              ]),
-              const SizedBox(height: 12),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobileForm = constraints.maxWidth < 550;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Headline & Subheadline
+                  if (isMobileForm) ...[
+                    _field('Page Headline', _c.pageHeadline),
+                    const SizedBox(height: 12),
+                    _field('Page Subheadline', _c.pageSubheadline),
+                  ] else ...[
+                    Row(children: [
+                      Expanded(child: _field('Page Headline', _c.pageHeadline)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _field('Page Subheadline', _c.pageSubheadline)),
+                    ]),
+                  ],
+                  const SizedBox(height: 12),
 
-              // Pricing
-              Row(children: [
-                Expanded(child: _field('Monthly Price (\$)', _c.premiumPriceMonthly, isNumber: true)),
-                const SizedBox(width: 12),
-                Expanded(child: _field('Annual Discount %', _c.premiumDiscountPct, isNumber: true)),
-                const SizedBox(width: 12),
-                Expanded(child: _readonlyPrice('Computed Yearly Price', _c.premiumPriceMonthly, _c.premiumDiscountPct)),
-              ]),
-              const SizedBox(height: 12),
+                  // Pricing
+                  if (isMobileForm) ...[
+                    _field('Monthly Price (\$)', _c.premiumPriceMonthly, isNumber: true),
+                    const SizedBox(height: 12),
+                    _field('Annual Discount %', _c.premiumDiscountPct, isNumber: true),
+                    const SizedBox(height: 12),
+                    _readonlyPrice('Computed Yearly Price', _c.premiumPriceMonthly, _c.premiumDiscountPct),
+                  ] else ...[
+                    Row(children: [
+                      Expanded(child: _field('Monthly Price (\$)', _c.premiumPriceMonthly, isNumber: true)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _field('Annual Discount %', _c.premiumDiscountPct, isNumber: true)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _readonlyPrice('Computed Yearly Price', _c.premiumPriceMonthly, _c.premiumDiscountPct)),
+                    ]),
+                  ],
+                  const SizedBox(height: 12),
 
-              // CTAs
-              Row(children: [
-                Expanded(child: _field('CTA Button Monthly', _c.premiumCtaMonthly)),
-                const SizedBox(width: 12),
-                Expanded(child: _field('CTA Button Yearly', _c.premiumCtaYearly)),
-              ]),
-              const SizedBox(height: 12),
+                  // CTAs
+                  if (isMobileForm) ...[
+                    _field('CTA Button Monthly', _c.premiumCtaMonthly),
+                    const SizedBox(height: 12),
+                    _field('CTA Button Yearly', _c.premiumCtaYearly),
+                  ] else ...[
+                    Row(children: [
+                      Expanded(child: _field('CTA Button Monthly', _c.premiumCtaMonthly)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _field('CTA Button Yearly', _c.premiumCtaYearly)),
+                    ]),
+                  ],
+                  const SizedBox(height: 12),
 
-              // Guarantees / Footer Copy
-              Row(children: [
-                Expanded(child: _field('Trial Text (e.g. 3-day free trial)', _c.trialText)),
-                const SizedBox(width: 12),
-                Expanded(child: _field('Money-back Guarantee Text', _c.moneyBackText)),
-              ]),
-              const SizedBox(height: 12),
+                  // Guarantees / Footer Copy
+                  if (isMobileForm) ...[
+                    _field('Trial Text (e.g. 3-day free trial)', _c.trialText),
+                    const SizedBox(height: 12),
+                    _field('Money-back Guarantee Text', _c.moneyBackText),
+                  ] else ...[
+                    Row(children: [
+                      Expanded(child: _field('Trial Text (e.g. 3-day free trial)', _c.trialText)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _field('Money-back Guarantee Text', _c.moneyBackText)),
+                    ]),
+                  ],
+                  const SizedBox(height: 12),
 
-              // Features List
-              _field('Premium Features (one per line)', _c.premiumFeatures, minLines: 2),
-              const SizedBox(height: 16),
+                  // Features List
+                  _field('Premium Features (one per line)', _c.premiumFeatures, minLines: 2),
+                  const SizedBox(height: 16),
 
-              const Divider(color: Color(0xFFE2E8F0)),
-              const SizedBox(height: 12),
+                  const Divider(color: Color(0xFFE2E8F0)),
+                  const SizedBox(height: 12),
 
-              // Variant Identity (Admin config)
-              Row(children: [
-                Expanded(child: _field('Variant Name *', _c.variantName)),
-                const SizedBox(width: 12),
-                SizedBox(width: 120, child: _field('Traffic Weight %', _c.trafficWeight, isNumber: true)),
-              ]),
-            ],
-          ),
-        ),
+                  // Variant Identity (Admin config)
+                  if (isMobileForm) ...[
+                    _field('Variant Name *', _c.variantName),
+                    const SizedBox(height: 12),
+                    _field('Traffic Weight %', _c.trafficWeight, isNumber: true),
+                  ] else ...[
+                    Row(children: [
+                      Expanded(child: _field('Variant Name *', _c.variantName)),
+                      const SizedBox(width: 12),
+                      SizedBox(width: 120, child: _field('Traffic Weight %', _c.trafficWeight, isNumber: true)),
+                    ]),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

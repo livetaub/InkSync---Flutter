@@ -16,6 +16,7 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/invites/pending_invites_screen.dart';
 import '../screens/subscription/subscription_screen.dart';
 import 'package:helploop_sdk/helploop_sdk.dart';
+import '../screens/settings/support_screen.dart';
 import '../utils/ui_helper.dart';
 
 /// Floating menu sheet with navigation and actions
@@ -284,13 +285,47 @@ class _MainMenuSheetState extends State<MainMenuSheet> {
                       }
                     },
                   ),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.sms_outlined,
-                    title: 'Contact Support',
-                    onTap: () {
-                      Navigator.pop(context);
-                      HelpLoop.open(context);
+                  StreamBuilder<int>(
+                    stream: HelpLoop.unreadCountStream,
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      return _buildMenuItem(
+                        context,
+                        icon: Icons.sms_outlined,
+                        title: 'Chat with us',
+                        trailing: count > 0 
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                count > 99 ? '99+' : count.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                          : null,
+                        onTap: () {
+                          Navigator.pop(context);
+                          final isWide = MediaQuery.of(context).size.width > 900;
+                          if (isWide) {
+                            showLargeDialog(
+                              context: context,
+                              child: const SupportScreen(isDialog: true),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const SupportScreen()),
+                            );
+                          }
+                        },
+                      );
                     },
                   ),
                   const Divider(height: 16, indent: 16, endIndent: 16),

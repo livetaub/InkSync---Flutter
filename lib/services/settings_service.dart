@@ -15,6 +15,7 @@ class UserSettings {
   final bool darkMode;
   final bool notificationsEnabled;
   final bool isPremium;
+  final bool showBrainDump;
   final DateTime? lastSyncAt;
   final DateTime? createdDate;
   final DateTime? updatedDate;
@@ -26,6 +27,7 @@ class UserSettings {
     this.darkMode = false,
     this.notificationsEnabled = true,
     this.isPremium = false,
+    this.showBrainDump = true,
     this.lastSyncAt,
     this.createdDate,
     this.updatedDate,
@@ -39,6 +41,7 @@ class UserSettings {
       darkMode: false, // Not in schema, use default
       notificationsEnabled: data['haptic_enabled'] ?? true,
       isPremium: data['is_premium'] ?? false,
+      showBrainDump: data['show_quick_note'] ?? true,
       lastSyncAt: null,
       createdDate: data['created_at'] != null
           ? DateTime.parse(data['created_at'])
@@ -54,6 +57,7 @@ class UserSettings {
       'darkMode': darkMode,
       'notificationsEnabled': notificationsEnabled,
       'isPremium': isPremium,
+      'showBrainDump': showBrainDump,
       'lastSyncAt': lastSyncAt?.toIso8601String(),
       'created_date': createdDate?.toIso8601String(),
       'updated_date': updatedDate?.toIso8601String(),
@@ -67,6 +71,7 @@ class UserSettings {
     bool? darkMode,
     bool? notificationsEnabled,
     bool? isPremium,
+    bool? showBrainDump,
     DateTime? lastSyncAt,
     DateTime? createdDate,
     DateTime? updatedDate,
@@ -78,6 +83,7 @@ class UserSettings {
       darkMode: darkMode ?? this.darkMode,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       isPremium: isPremium ?? this.isPremium,
+      showBrainDump: showBrainDump ?? this.showBrainDump,
       lastSyncAt: lastSyncAt ?? this.lastSyncAt,
       createdDate: createdDate ?? this.createdDate,
       updatedDate: updatedDate ?? this.updatedDate,
@@ -106,6 +112,7 @@ class SettingsService {
           darkMode: false,
           notificationsEnabled: (local['haptic_enabled'] as int?) == 1,
           isPremium: (local['is_premium'] as int?) == 1,
+          showBrainDump: local['show_quick_note'] == null || local['show_quick_note'] == 1,
         );
       }
       return UserSettings();
@@ -145,6 +152,7 @@ class SettingsService {
         'default_color': '#10B981',
         'haptic_enabled': true,
         'is_premium': false,
+        'show_quick_note': true,
       });
     } catch (e) {
       // May already exist due to trigger
@@ -157,7 +165,7 @@ class SettingsService {
     'theme_mode', 'view_mode', 'sort_by', 'sort_order',
     'default_color', 'show_preview', 'auto_save',
     'font_size', 'is_premium', 'account_type',
-    'haptic_enabled', 'notifications_enabled',
+    'haptic_enabled', 'notifications_enabled', 'show_quick_note',
   };
 
   /// Update specific setting

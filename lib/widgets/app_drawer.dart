@@ -107,13 +107,36 @@ class AppDrawer extends StatelessWidget {
                       );
                     },
                   ),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.sms_outlined,
-                    title: 'Contact Support',
-                    onTap: () {
-                      Navigator.pop(context);
-                      SupportHub.open(context);
+                  StreamBuilder<int>(
+                    stream: HelpLoop.unreadCountStream,
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      return _buildMenuItem(
+                        context,
+                        icon: Icons.sms_outlined,
+                        title: 'Contact Support',
+                        trailing: count > 0 
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                count > 99 ? '99+' : count.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                          : null,
+                        onTap: () {
+                          Navigator.pop(context);
+                          HelpLoop.open(context);
+                        },
+                      );
                     },
                   ),
                 ],
@@ -221,6 +244,7 @@ class AppDrawer extends StatelessWidget {
     String? subtitle,
     Color? iconColor,
     Color? titleColor,
+    Widget? trailing,
     required VoidCallback onTap,
   }) {
     return ListTile(
@@ -229,15 +253,20 @@ class AppDrawer extends StatelessWidget {
         title,
         style: TextStyle(
           color: titleColor ?? AppTheme.textPrimary,
+          fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: subtitle != null
           ? Text(
               subtitle,
-              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+              style: TextStyle(
+                color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
             )
           : null,
+      trailing: trailing,
       onTap: onTap,
     );
   }

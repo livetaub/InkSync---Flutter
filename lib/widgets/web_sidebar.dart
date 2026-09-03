@@ -10,7 +10,7 @@ import '../services/auth_service.dart';
 import '../screens/subscription/subscription_screen.dart';
 import '../utils/ui_helper.dart';
 import 'package:provider/provider.dart';
-import 'package:helploop_sdk/helploop_sdk.dart';
+import '../screens/settings/support_screen.dart';
 
 
 class WebSidebar extends StatefulWidget {
@@ -19,6 +19,7 @@ class WebSidebar extends StatefulWidget {
   final VoidCallback onMenuOpen;
   final VoidCallback onCreateNote;
   final VoidCallback onCreateChecklist;
+  final VoidCallback onCreateQuickNote;
   final VoidCallback onSync;
   final VoidCallback onTrashOpen;
   final VoidCallback onSearch;
@@ -32,6 +33,7 @@ class WebSidebar extends StatefulWidget {
     required this.onMenuOpen,
     required this.onCreateNote,
     required this.onCreateChecklist,
+    required this.onCreateQuickNote,
     required this.onSync,
     required this.onTrashOpen,
     required this.onSearch,
@@ -303,7 +305,10 @@ class _WebSidebarState extends State<WebSidebar> {
           Icons.sms_outlined,
           'Contact Support',
           null,
-          () => HelpLoop.open(context),
+          () => showLargeDialog(
+            context: context,
+            child: const SupportScreen(isDialog: true),
+          ),
         ),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 28, vertical: 8),
@@ -587,3 +592,4 @@ class _WebSidebarState extends State<WebSidebar> {
     );
   }
 }
+

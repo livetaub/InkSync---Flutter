@@ -15,10 +15,13 @@ import '../../services/subscription_service.dart';
 import '../home/home_screen.dart';
 import '../calendar/calendar_screen.dart';
 import '../note_edit/note_edit_screen.dart';
+import '../quick_note/quick_note_screen.dart';
 import '../trash/trash_screen.dart';
 import '../../widgets/main_menu_sheet.dart';
 import '../../widgets/web_sidebar.dart';
 import '../../widgets/auth_dialogs.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../settings/support_screen.dart';
 
 /// MainNavigation - Bottom navigation with all main screens
 class MainNavigation extends StatefulWidget {
@@ -56,7 +59,7 @@ class _MainNavigationState extends State<MainNavigation> {
         noteTypeFilter: 'checklist',
         isSyncing: _isSyncing,
       ), // Checklists only (index 1)
-      const CalendarScreen(), // Calendar (index 2)
+      const CalendarScreen(), // Calendar (index 2) — icon: calendar_today
       const TrashScreen(), // Trash (index 3)
     ];
   }
@@ -76,6 +79,68 @@ class _MainNavigationState extends State<MainNavigation> {
     } else {
       // Mobile: trigger initial sync when entering the main app
       _triggerMobileSync();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkFeedbackDialog();
+    });
+  }
+
+  Future<void> _checkFeedbackDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    int count = prefs.getInt('app_open_count') ?? 0;
+    count++;
+    await prefs.setInt('app_open_count', count);
+    
+    if (count == 3 && mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          titlePadding: const EdgeInsets.fromLTRB(24, 8, 8, 0),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 12.0),
+                  child: Text('Help shape InkSync! 🚀'),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 20, color: Colors.grey),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                splashRadius: 20,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Your voice matters! We\'re actively building and improving, and we\'d love to hear what you love or what we can do better.\n\nChat directly with the developers and help us build the perfect app for you.',
+            style: TextStyle(height: 1.4),
+          ),
+            actions: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SupportScreen()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Chat with us', style: TextStyle(fontSize: 16)),
+                ),
+              ),
+            ],
+        ),
+      );
     }
   }
 
@@ -340,6 +405,9 @@ class _MainNavigationState extends State<MainNavigation> {
                   ),
                 ).then((_) => _refreshHomeScreens());
               },
+              onCreateQuickNote: () {
+                selectionProvider.selectQuickNote();
+              },
             ),
 
             // Combined Note List and Editor Area with rounded corners
@@ -390,17 +458,19 @@ class _MainNavigationState extends State<MainNavigation> {
                     ),
                     // Editor
                     Expanded(
-                      child: selectionProvider.selectedNote != null
-                          ? NoteEditScreen(
-                              note: selectionProvider.selectedNote,
-                              isEmbedded: true,
-                              key: ValueKey(selectionProvider.selectedNote!.id),
-                              onSave: _refreshHomeScreens,
-                              initialSearchQuery: selectionProvider.pendingSearchQuery,
-                            )
-                          : _buildEmptyEditorPlaceholder(
-                              themeProvider.isDarkMode,
-                            ),
+                      child: selectionProvider.isQuickNoteSelected
+                          ? const QuickNoteScreen(isEmbedded: true)
+                          : selectionProvider.selectedNote != null
+                              ? NoteEditScreen(
+                                  note: selectionProvider.selectedNote,
+                                  isEmbedded: true,
+                                  key: ValueKey(selectionProvider.selectedNote!.id),
+                                  onSave: _refreshHomeScreens,
+                                  initialSearchQuery: selectionProvider.pendingSearchQuery,
+                                )
+                              : _buildEmptyEditorPlaceholder(
+                                  themeProvider.isDarkMode,
+                                ),
                     ),
                   ],
                 ),
@@ -412,21 +482,35 @@ class _MainNavigationState extends State<MainNavigation> {
     }
 
     // Mobile Navigation - Bottom navigation bar
-    return Scaffold(
-      backgroundColor: themeProvider.isDarkMode
-          ? AppTheme.bgPrimaryDark
-          : Colors.white,
-      body: IndexedStack(
-        index: _currentIndex, 
-        children: _screens,
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showMobileCreateDialog(context),
-        backgroundColor: const Color(0xFF10D98C),
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
-      ),
+    return Consumer<SelectionProvider>(
+      builder: (context, selection, child) {
+        return WillPopScope(
+          onWillPop: () async {
+            if (selection.isQuickNoteSelected) {
+              selection.clearSelection();
+              return false; // Prevent pop, go back to previous tab
+            }
+            return true; // Allow pop (exit app)
+          },
+          child: Scaffold(
+            backgroundColor: themeProvider.isDarkMode
+                ? AppTheme.bgPrimaryDark
+                : Colors.white,
+            body: selection.isQuickNoteSelected
+                ? const QuickNoteScreen(isEmbedded: true)
+                : IndexedStack(
+                    index: _currentIndex, 
+                    children: _screens,
+                  ),
+            floatingActionButton: (_currentIndex == 0 || _currentIndex == 1) && !selection.isQuickNoteSelected
+                ? FloatingActionButton(
+                    onPressed: () => _showMobileCreateDialog(context),
+                    backgroundColor: const Color(0xFF10D98C),
+                    elevation: 4,
+                    shape: const CircleBorder(),
+                    child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+                  )
+                : null,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: themeProvider.isDarkMode
@@ -459,6 +543,7 @@ class _MainNavigationState extends State<MainNavigation> {
                   label: 'Notes',
                   isSelected: _currentIndex == 0,
                   onTap: () {
+                    Provider.of<SelectionProvider>(context, listen: false).clearSelection();
                     setState(() => _currentIndex = 0);
                     _performDataSync();
                   },
@@ -469,18 +554,19 @@ class _MainNavigationState extends State<MainNavigation> {
                   label: 'Checklists',
                   isSelected: _currentIndex == 1,
                   onTap: () {
+                    Provider.of<SelectionProvider>(context, listen: false).clearSelection();
                     setState(() => _currentIndex = 1);
                     _performDataSync();
                   },
                   isDark: themeProvider.isDarkMode,
                 ),
                 _buildBottomNavItem(
-                  icon: Icons.calendar_today_outlined,
+                  icon: Icons.calendar_today_rounded,
                   label: 'Calendar',
                   isSelected: _currentIndex == 2,
                   onTap: () {
+                    Provider.of<SelectionProvider>(context, listen: false).clearSelection();
                     setState(() => _currentIndex = 2);
-                    // Calendar might need refresh if added
                   },
                   isDark: themeProvider.isDarkMode,
                 ),
@@ -503,7 +589,10 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
         ),
       ),
-    );
+    ), // ends Scaffold
+        ); // ends WillPopScope
+      }, // ends builder
+    ); // ends Consumer
   }
 
   Widget _buildBottomNavItem({
@@ -612,6 +701,20 @@ class _MainNavigationState extends State<MainNavigation> {
                       },
                     ),
                   ).then((_) => _refreshHomeScreens());
+                },
+              ),
+
+              const SizedBox(height: 12),
+
+              // Quick Note option
+              _buildCreateOption(
+                context,
+                icon: Icons.bolt_rounded,
+                label: 'Quick Note',
+                subtitle: 'Jot down temporary thoughts',
+                onTap: () {
+                  Navigator.pop(context);
+                  Provider.of<SelectionProvider>(context, listen: false).selectQuickNote();
                 },
               ),
             ],
