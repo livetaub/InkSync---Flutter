@@ -30,7 +30,13 @@ const Navbar = () => {
         </div>
 
         {/* Mobile Nav Toggle */}
-        <button className="mobile-toggle" onClick={() => setIsOpen(!isOpen)}>
+        <button
+          type="button"
+          className="mobile-toggle"
+          aria-label={isOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen(!isOpen)}
+        >
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
