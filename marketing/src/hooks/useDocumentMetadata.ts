@@ -29,22 +29,25 @@ export function useDocumentMetadata(title: string, description: string) {
     updateMetaTag('property', 'og:description', description);
     // 3b. Canonical URL doubles as og:url (set below, then mirrored here).
 
-    // 4. Update canonical link dynamically
-    // Avoid hardcoding the protocol/domain in subpaths.
+    // 4. Update canonical link dynamically.
+    // Always canonicalize to the apex production domain, no matter which
+    // hostname served the page (www, preview URLs, etc.). This consolidates
+    // ranking signals on https://inksyncnote.com and prevents duplicate
+    // content if the site is ever reachable via an alternate hostname.
     let canonical = document.querySelector('link[rel="canonical"]');
     if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonical);
+      const link = document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      document.head.appendChild(link);
+      canonical = link;
     }
-    
-    // Construct canonical URL using current hostname & pathname (e.g. terms.inksyncnote.com or inksyncnote.com)
-    const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
+
     const pathname = window.location.pathname === '/' ? '' : window.location.pathname;
-    
-    // Fallback locally/dev but build clean canonical url on production
-    const canonicalUrl = `${protocol}//${hostname}${pathname}`;
+    // The terms.inksyncnote.com subdomain always serves the terms page,
+    // regardless of path — canonicalize it to the real /terms/ URL.
+    const canonicalUrl = window.location.hostname === 'terms.inksyncnote.com'
+      ? 'https://inksyncnote.com/terms/'
+      : `https://inksyncnote.com${pathname}`;
     canonical.setAttribute('href', canonicalUrl);
 
     // Mirror the canonical URL into og:url so prerendered pages and
