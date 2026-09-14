@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Shield, Users, Zap, ArrowRight, Monitor, RefreshCw, CalendarDays, CheckSquare, PenTool, ChevronDown, Smartphone, FileText, Share2, WifiOff, Brain } from 'lucide-react';
 import { useDocumentMetadata } from '../hooks/useDocumentMetadata';
 import './LandingPage.css';
@@ -305,6 +306,11 @@ const LandingPage = () => {
                   <p>{item.description}</p>
                 </div>
               ))}
+            </div>
+            <div className="wedge-links">
+              <Link to="/shared-grocery-list-app/" className="wedge-link">Shared grocery list app</Link>
+              <Link to="/notes-app-for-couples/" className="wedge-link">Notes app for couples</Link>
+              <Link to="/family-shared-notes-app/" className="wedge-link">Family shared notes app</Link>
             </div>
             <a href={`${APP_URL}/register`} className="section-cta">
               Start writing for free &rarr;
