@@ -1,6 +1,7 @@
 .wedge-page-container {
   min-height: 100vh;
   background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  padding-top: 104px; /* clear the fixed 80px navbar + breathing room */
 }
 
 .wedge-content-wrapper {
