@@ -133,7 +133,7 @@ const LandingPage = () => {
                 Explore Features
               </a>
             </div>
-            <p className="hero-disclaimer">Free forever • Cancel anytime</p>
+            <p className="hero-disclaimer">Free plan forever • No credit card required</p>
           </div>
 
           <div className="hero-image-wrapper animate-fade-up delay-200">
@@ -483,7 +483,7 @@ const LandingPage = () => {
                 <li><span className="check">✓</span> Password-protected notes</li>
                 <li><span className="check">✓</span> Calendar integration</li>
               </ul>
-              <a href="https://app.inksyncnote.com/register" className="btn-primary pricing-btn" data-track="signup_cta_click" data-cta="pricing-premium">Start Free Trial</a>
+              <a href="https://app.inksyncnote.com/register" className="btn-primary pricing-btn" data-track="signup_cta_click" data-cta="pricing-premium">Go Premium</a>
             </div>
           </div>
         </section>
