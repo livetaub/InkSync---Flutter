@@ -21,15 +21,47 @@ export default function ComparisonPage() {
   const APP_URL = 'https://app.inksyncnote.com';
   const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.InkSync';
 
+  // Data-driven FAQs: unique per page, built from the comparison data itself.
+  const faqs = [
+    {
+      question: `Which is better: ${data.competitorA.name} or ${data.competitorB.name}?`,
+      answer: data.verdict
+    },
+    {
+      question: `What is the main difference between ${data.competitorA.name} and ${data.competitorB.name}?`,
+      answer: `${data.competitorA.name}: ${data.competitorA.description} ${data.competitorB.name}: ${data.competitorB.description}`
+    },
+    {
+      question: `Is there a good alternative to ${data.competitorA.name} and ${data.competitorB.name}?`,
+      answer: `Yes. If neither ${data.competitorA.name} nor ${data.competitorB.name} ticks all your boxes, InkSync is a third option worth trying: ${data.whyInkSync[0].description} The free plan includes up to 50 notes with real-time sync across Android and Web.`
+    },
+    {
+      question: `Can I try InkSync for free before switching?`,
+      answer: `Absolutely. InkSync's free plan includes up to 50 notes and checklists with real-time sync across your devices — no credit card required. You can keep using ${data.competitorA.name} or ${data.competitorB.name} alongside it while you decide.`
+    }
+  ];
+
   const schemaData = {
     "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": data.metaTitle,
-    "description": data.metaDescription,
-    "author": {
-      "@type": "Organization",
-      "name": "InkSync"
-    }
+    "@graph": [
+      {
+        "@type": "Article",
+        "headline": data.metaTitle,
+        "description": data.metaDescription,
+        "author": {
+          "@type": "Organization",
+          "name": "InkSync"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": faqs.map((f) => ({
+          "@type": "Question",
+          "name": f.question,
+          "acceptedAnswer": { "@type": "Answer", "text": f.answer }
+        }))
+      }
+    ]
   };
 
   const otherComparisons = Object.keys(comparisonData)
@@ -138,6 +170,19 @@ export default function ComparisonPage() {
         <section className="verdict-section">
           <h2>Summary: {data.competitorA.name} vs {data.competitorB.name}</h2>
           <p>{data.verdict}</p>
+        </section>
+
+        {/* FAQ */}
+        <section className="faq-section">
+          <h2>{data.competitorA.name} vs {data.competitorB.name}: FAQs</h2>
+          <div className="faq-list">
+            {faqs.map((f, i) => (
+              <div key={i} className="faq-item">
+                <h3>{f.question}</h3>
+                <p>{f.answer}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* Section 2: Consider InkSync as Option 3 */}

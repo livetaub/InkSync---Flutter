@@ -397,8 +397,15 @@ const LandingPage = () => {
           </div>
           <div className="comparison-links">
             <a href="/compare/google-keep-vs-apple-notes">Google Keep vs Apple Notes →</a>
+            <a href="/compare/google-keep-vs-evernote">Google Keep vs Evernote →</a>
             <a href="/compare/google-keep-vs-notion">Google Keep vs Notion →</a>
+            <a href="/compare/google-keep-vs-simplenote">Google Keep vs Simplenote →</a>
+            <a href="/compare/apple-notes-vs-evernote">Apple Notes vs Evernote →</a>
+            <a href="/compare/apple-notes-vs-notion">Apple Notes vs Notion →</a>
+            <a href="/compare/apple-notes-vs-bear">Apple Notes vs Bear →</a>
             <a href="/compare/notion-vs-evernote">Notion vs Evernote →</a>
+            <a href="/compare/notion-vs-bear">Notion vs Bear →</a>
+            <a href="/compare/notion-vs-simplenote">Notion vs Simplenote →</a>
           </div>
         </section>
 
