@@ -64,11 +64,16 @@ function makeResources() {
   };
 }
 
-// The bundle tag must not be type="module" (jsdom won't execute it).
+// The bundle tag must not be type="module" (jsdom won't execute it), but it
+// MUST stay deferred: a synchronous classic script in <head> would run before
+// <div id="root"> is parsed, so createRoot(null) throws React error #299 and
+// the entire app silently never mounts (page looks fine from the prerendered
+// HTML, but every interactive element is dead). `defer` runs it after parsing
+// in real browsers and is honored by jsdom too.
 function buildShell() {
   return fs
     .readFileSync(path.join(DIST, 'index.html'), 'utf8')
-    .replace('<script type="module"', '<script data-prerender-classic');
+    .replace('<script type="module"', '<script defer data-prerender-classic');
 }
 
 function sleep(ms) {
