@@ -77,6 +77,10 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  /* Solid (not glass): page content must not show through behind the links. */
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
 }
 
 .mobile-link {

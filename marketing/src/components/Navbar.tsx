@@ -43,7 +43,7 @@ const Navbar = () => {
 
       {/* Mobile Nav Menu */}
       {isOpen && (
-        <div className="mobile-menu glass-panel animate-fade-up">
+        <div className="mobile-menu animate-fade-up">
           <Link to="/" className="mobile-link" onClick={() => setIsOpen(false)}>Home</Link>
           <a href="/#features" className="mobile-link" onClick={() => setIsOpen(false)}>Features</a>
           <div className="mobile-divider"></div>
