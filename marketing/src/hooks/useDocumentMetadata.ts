@@ -27,6 +27,7 @@ export function useDocumentMetadata(title: string, description: string) {
     // 3. Update OpenGraph tags
     updateMetaTag('property', 'og:title', title);
     updateMetaTag('property', 'og:description', description);
+    // 3b. Canonical URL doubles as og:url (set below, then mirrored here).
 
     // 4. Update canonical link dynamically
     // Avoid hardcoding the protocol/domain in subpaths.
@@ -45,5 +46,9 @@ export function useDocumentMetadata(title: string, description: string) {
     // Fallback locally/dev but build clean canonical url on production
     const canonicalUrl = `${protocol}//${hostname}${pathname}`;
     canonical.setAttribute('href', canonicalUrl);
+
+    // Mirror the canonical URL into og:url so prerendered pages and
+    // link unfurlers see the page-specific URL, not the homepage's.
+    updateMetaTag('property', 'og:url', canonicalUrl);
   }, [title, description]);
 }

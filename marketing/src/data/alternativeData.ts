@@ -94,7 +94,7 @@ export const alternativesData: AlternativeData[] = [
     ],
     features: [
       { feature: 'Multi-User Note Sharing & Collaboration', competitor: false, inksync: 'Premium' },
-      { feature: 'Real-time Cross-Platform Sync', competitor: true, inksync: 'Free (150 notes)' },
+      { feature: 'Real-time Cross-Platform Sync', competitor: true, inksync: 'Free (50 notes)' },
       { feature: 'AI Writing Assistant', competitor: false, inksync: 'Premium' },
       { feature: 'Note Locking/Privacy', competitor: false, inksync: true },
       { feature: 'Checklists', competitor: false, inksync: true },
@@ -146,7 +146,7 @@ export const alternativesData: AlternativeData[] = [
     features: [
       { feature: 'Native Android App', competitor: false, inksync: true },
       { feature: 'Multi-User Note Sharing & Collaboration', competitor: false, inksync: 'Premium' },
-      { feature: 'Real-time Cross-Platform Sync', competitor: 'Apple only', inksync: 'Free (150 notes)' },
+      { feature: 'Real-time Cross-Platform Sync', competitor: 'Apple only', inksync: 'Free (50 notes)' },
       { feature: 'Folder Organization', competitor: true, inksync: true },
       { feature: 'AI Writing Assistant', competitor: false, inksync: 'Premium' },
       { feature: 'Document Scanning', competitor: true, inksync: true },
@@ -191,7 +191,7 @@ export const alternativesData: AlternativeData[] = [
       },
       {
         title: 'Affordable Premium',
-        description: 'Generous free tier (up to 150 notes & checklists), and starting at just .99¢/wk or $33.99/yr for Premium with unlimited notes.',
+        description: 'Generous free tier (up to 50 notes & checklists), and starting at just $0.99/wk or $33.99/yr for Premium with unlimited notes.',
         icon: DollarSign
       }
     ],
@@ -202,7 +202,7 @@ export const alternativesData: AlternativeData[] = [
       { feature: 'Dedicated Brain Dump (voice, text & images)', competitor: false, inksync: 'Premium' },
       { feature: 'Multi-User Note Sharing & Collaboration', competitor: true, inksync: 'Premium' },
       { feature: 'AI Proofread & Tone Rewrite', competitor: true, inksync: 'Premium' },
-      { feature: 'Starting Price (Paid)', competitor: '$10/mo', inksync: '.99¢/wk or $33.99/yr' }
+      { feature: 'Starting Price (Paid)', competitor: '$10/mo', inksync: '$0.99/wk or $33.99/yr' }
     ],
     switchQuote: 'Spend your time writing notes, not organizing databases.'
   },
@@ -249,7 +249,7 @@ export const alternativesData: AlternativeData[] = [
     ],
     features: [
       { feature: 'Speed & Simplicity', competitor: true, inksync: true },
-      { feature: 'Real-time Cross-Platform Sync', competitor: true, inksync: 'Free (150 notes)' },
+      { feature: 'Real-time Cross-Platform Sync', competitor: true, inksync: 'Free (50 notes)' },
       { feature: 'Checklists', competitor: false, inksync: true },
       { feature: 'Dedicated Brain Dump (voice, text & images)', competitor: false, inksync: 'Premium' },
       { feature: 'Multi-User Note Sharing & Collaboration', competitor: false, inksync: 'Premium' },
@@ -290,7 +290,7 @@ export const alternativesData: AlternativeData[] = [
       },
       {
         title: 'Free Device Sync',
-        description: 'Syncing your notes across all your devices is completely free on InkSync (up to 150 notes & checklists).',
+        description: 'Syncing your notes across all your devices is completely free on InkSync (up to 50 notes & checklists).',
         icon: CloudOff
       },
       {
@@ -304,7 +304,7 @@ export const alternativesData: AlternativeData[] = [
       { feature: 'Beautiful UI', competitor: true, inksync: true },
       { feature: 'Android App', competitor: false, inksync: true },
       { feature: 'Web App', competitor: false, inksync: true },
-      { feature: 'Real-time Cross-Platform Sync', competitor: 'Paid ($2.99/mo)', inksync: 'Free (150 notes)' },
+      { feature: 'Real-time Cross-Platform Sync', competitor: 'Paid ($2.99/mo)', inksync: 'Free (50 notes)' },
       { feature: 'Dedicated Brain Dump', competitor: false, inksync: 'Premium' },
       { feature: 'Multi-User Note Sharing & Collaboration', competitor: false, inksync: 'Premium' }
     ],
@@ -337,7 +337,7 @@ export const alternativesData: AlternativeData[] = [
     solutions: [
       {
         title: 'Affordable Pricing',
-        description: 'InkSync Premium is just .99¢/wk ($33.99/yr) for unlimited notes, and our free tier is generous enough for most users.',
+        description: 'InkSync Premium is just $0.99/wk ($33.99/yr) for unlimited notes, and our free tier is generous enough for most users.',
         icon: DollarSign
       },
       {
@@ -347,18 +347,18 @@ export const alternativesData: AlternativeData[] = [
       },
       {
         title: 'Generous Free Plan',
-        description: 'Create up to 150 notes & checklists with cross-device sync on our free plan. No paywall traps.',
+        description: 'Create up to 50 notes & checklists with cross-device sync on our free plan. No paywall traps.',
         icon: CheckSquare
       }
     ],
     features: [
       { feature: 'Web Clipper', competitor: true, inksync: false },
-      { feature: 'Real-time Cross-Platform Sync', competitor: 'Paid only (mostly)', inksync: 'Free (150 notes)' },
+      { feature: 'Real-time Cross-Platform Sync', competitor: 'Paid only (mostly)', inksync: 'Free (50 notes)' },
       { feature: 'App Speed', competitor: 'Slow & Heavy', inksync: 'Lightning Fast' },
       { feature: 'Dedicated Brain Dump', competitor: false, inksync: 'Premium' },
       { feature: 'AI Proofreading & Tone Rewrite', competitor: true, inksync: 'Premium' },
       { feature: 'Multi-User Note Sharing & Collaboration', competitor: true, inksync: 'Premium' },
-      { feature: 'Starting Paid Price', competitor: '$14.99+/mo', inksync: '.99¢/wk ($33.99/yr)' }
+      { feature: 'Starting Paid Price', competitor: '$14.99+/mo', inksync: '$0.99/wk ($33.99/yr)' }
     ],
     switchQuote: 'Go back to basics. Get a fast, clean note-taking app that doesn\'t break the bank.'
   }

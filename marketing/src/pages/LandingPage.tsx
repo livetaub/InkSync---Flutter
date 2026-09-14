@@ -1,19 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Shield, Users, Zap, ArrowRight, Monitor, RefreshCw, CalendarDays, CheckSquare, PenTool, ChevronDown, Star, Smartphone, FileText, Share2, WifiOff, Brain } from 'lucide-react';
+import { Shield, Users, Zap, ArrowRight, Monitor, RefreshCw, CalendarDays, CheckSquare, PenTool, ChevronDown, Smartphone, FileText, Share2, WifiOff, Brain } from 'lucide-react';
 import { useDocumentMetadata } from '../hooks/useDocumentMetadata';
 import './LandingPage.css';
 
-const TESTIMONIALS = [
-  { text: "I was using Apple Notes and Google Keep across different devices and it was a mess. InkSync fixed that — one app, everything in sync. I use it for class notes, grocery lists, everything.", author: "Priya M.", avatar: "P", stars: 5 },
-  { text: "Our team switched from a shared Google Doc to InkSync for meeting notes. The real-time collab is smooth and way less cluttered. Plus my personal notes stay separate.", author: "James W.", avatar: "J", stars: 5 },
-  { text: "I write on my phone during my commute and pick up right where I left off on my laptop. The sync is genuinely instant. No fiddling with exports or cloud drives.", author: "Maria S.", avatar: "M", stars: 5 },
-  { text: "My wife and I share grocery lists, packing lists, and home project notes through InkSync. It replaced our fridge whiteboard. Simple, fast, and always up to date.", author: "Tom H.", avatar: "T", stars: 4 },
-  { text: "I have tried Notion, Bear, and Simplenote. InkSync hits the sweet spot — it has checklists, brain dump, and AI features without the bloat. It is the only notes app I have stuck with.", author: "Riki T.", avatar: "R", stars: 5 },
-];
-
 const FAQ_ITEMS = [
   { question: "What is InkSync?", answer: "InkSync is a cross-platform note-taking app designed for simplicity, offline reliability, and seamless sync. It works on Android, iOS, and the web, with local-first storage so your notes are always available even without an internet connection." },
-  { question: "Is InkSync free to use?", answer: "Yes. InkSync offers a generous free plan that includes up to 150 notes & checklists, and real-time cross-platform sync across your Android, iOS, and Web devices. If you need more capacity, multi-user collaboration, or other Premium features, InkSync Premium is available starting at .99¢ per week ($33.99/year)." },
+  { question: "Is InkSync free to use?", answer: "Yes. InkSync offers a free plan that includes up to 50 notes & checklists, and real-time cross-platform sync across your Android and Web devices (iOS coming soon). If you need more capacity, multi-user collaboration, or other Premium features, InkSync Premium is available at $0.99 per week or $33.99 per year." },
   { question: "Which devices does InkSync work on?", answer: "InkSync is available on Android via Google Play, on any modern web browser at app.inksyncnote.com, and an iOS app is coming soon. Your mobile app works 100% offline and syncs across all your devices in real time whenever connected." },
   { question: "Can I share and collaborate notes with other people?", answer: "Absolutely. InkSync Premium supports multi-user note sharing & collaboration — you can invite anyone by email to view or edit a note together. It works great for shared grocery lists, meeting notes, group projects, and travel planning." },
   { question: "Is my data private and secure?", answer: "Yes. InkSync takes privacy seriously. You can password-protect your notes. Your data is stored securely on encrypted cloud infrastructure." },
@@ -97,7 +89,7 @@ const LandingPage = () => {
           <div className="hero-content animate-fade-up">
             <div className="badge">
               <Zap size={16} color="var(--primary)" />
-              <span>Available on Android, iOS & Web • Local-First</span>
+              <span>Available on Android & Web • iOS Coming Soon</span>
             </div>
             
             <h1 className="hero-title">
@@ -381,7 +373,7 @@ const LandingPage = () => {
                 </tr>
                 <tr>
                   <td>Free plan</td>
-                  <td className="highlight-col"><span className="check">✓ (150 notes)</span></td>
+                  <td className="highlight-col"><span className="check">✓ (50 notes)</span></td>
                   <td><span className="check">✓</span></td>
                   <td><span className="check">✓</span></td>
                   <td><span className="check">✓</span></td>
@@ -395,38 +387,6 @@ const LandingPage = () => {
             <a href="/compare/notion-vs-evernote">Notion vs Evernote →</a>
           </div>
         </section>
-
-        {/* Testimonials Section */}
-        <section id="testimonials" className="testimonials-section">
-          <div className="testimonials-header">
-            <h2>What people are saying</h2>
-          </div>
-          
-          <div className="marquee-container">
-            {[...TESTIMONIALS, ...TESTIMONIALS].map((testimonial, i) => (
-              <div key={i} className="testimonial-card">
-                <div className="testimonial-stars">
-                  {Array.from({ length: 5 }).map((_, starIdx) => (
-                    <Star 
-                      key={starIdx} 
-                      size={14} 
-                      className={starIdx < testimonial.stars ? "star-filled" : "star-empty"} 
-                      fill={starIdx < testimonial.stars ? "currentColor" : "none"} 
-                    />
-                  ))}
-                </div>
-                <p className="testimonial-text">"{testimonial.text}"</p>
-                <div className="testimonial-author">
-                  <div className="author-avatar">{testimonial.avatar}</div>
-                  <div className="author-info">
-                    <h4>{testimonial.author}</h4>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* FAQ Section */}
         <section id="faq" className="faq-section container">
           <div className="section-header">
@@ -468,7 +428,7 @@ const LandingPage = () => {
                 </div>
               </div>
               <ul className="pricing-features">
-                <li><span className="check">✓</span> Up to 150 notes & checklists</li>
+                <li><span className="check">✓</span> Up to 50 notes & checklists</li>
                 <li><span className="check">✓</span> Real-time cross-platform sync (your devices)</li>
                 <li><span className="check">✓</span> Local-first offline access</li>
                 <li><span className="check">✓</span> Tags & instant search</li>
@@ -481,7 +441,7 @@ const LandingPage = () => {
               <div className="pricing-card-header">
                 <h3>Premium</h3>
                 <div className="pricing-price">
-                  <span className="price-amount">.99¢</span>
+                  <span className="price-amount">$0.99</span>
                   <span className="price-period">/week or $33.99/yr</span>
                 </div>
               </div>

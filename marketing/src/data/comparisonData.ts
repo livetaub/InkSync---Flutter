@@ -65,7 +65,7 @@ export const comparisonData: Record<string, ComparisonData> = {
       ]
     },
     features: [
-      { feature: 'Real-time Cross-Platform Sync (Your Devices)', competitorA: '✓ (Android & Web)', competitorB: '✗ (Apple Only)', inksync: '✓ (Free up to 150 notes)' },
+      { feature: 'Real-time Cross-Platform Sync (Your Devices)', competitorA: '✓ (Android & Web)', competitorB: '✗ (Apple Only)', inksync: '✓ (Free up to 50 notes)' },
       { feature: 'Password & Biometric Note Locking', competitorA: false, competitorB: true, inksync: true },
       { feature: 'Rich Text Formatting & Tables', competitorA: false, competitorB: true, inksync: true },
       { feature: 'Color-Coded Sticky Note Grid', competitorA: true, competitorB: false, inksync: true },
@@ -73,7 +73,7 @@ export const comparisonData: Record<string, ComparisonData> = {
       { feature: 'Google Workspace & Calendar Sync', competitorA: true, competitorB: false, inksync: true },
       { feature: 'Interactive Checklists', competitorA: true, competitorB: true, inksync: true },
       { feature: 'Audio Voice Memos & Drawings', competitorA: true, competitorB: true, inksync: true },
-      { feature: 'Pricing', competitorA: 'Free', competitorB: 'Free', inksync: 'Free (150 notes) / .99¢/wk ($33.99/yr)' },
+      { feature: 'Pricing', competitorA: 'Free', competitorB: 'Free', inksync: 'Free (50 notes) / $0.99/wk ($33.99/yr)' },
       { feature: 'Local-first Offline Mode', competitorA: 'Partial', competitorB: true, inksync: true },
       { feature: 'Dedicated Brain Dump (Voice, Text & Images)', competitorA: false, competitorB: false, inksync: 'Premium' },
       { feature: 'Multi-User Note Sharing & Collaboration', competitorA: false, competitorB: false, inksync: 'Premium' },
@@ -132,7 +132,7 @@ export const comparisonData: Record<string, ComparisonData> = {
       { feature: 'Modular Block Editor & Templates', competitorA: false, competitorB: true, inksync: false },
       { feature: 'Interactive Checklists', competitorA: true, competitorB: true, inksync: true },
       { feature: 'Offline Support', competitorA: 'Good', competitorB: 'Limited / Poor', inksync: 'Local-first (100% Offline)' },
-      { feature: 'Pricing', competitorA: 'Free', competitorB: 'Free / $8+ mo', inksync: 'Free (150 notes) / .99¢/wk ($33.99/yr)' },
+      { feature: 'Pricing', competitorA: 'Free', competitorB: 'Free / $8+ mo', inksync: 'Free (50 notes) / $0.99/wk ($33.99/yr)' },
       { feature: 'Dedicated Brain Dump (Voice, Text & Images)', competitorA: false, competitorB: false, inksync: 'Premium' },
       { feature: 'Multi-User Note Sharing & Collaboration', competitorA: false, competitorB: true, inksync: 'Premium' },
       { feature: 'AI Proofread & Tone Rewrite', competitorA: false, competitorB: 'Add-on ($)', inksync: 'Premium' }
@@ -140,7 +140,7 @@ export const comparisonData: Record<string, ComparisonData> = {
     whyInkSync: [
       { title: 'Speed of Keep + Organization of a Workspace', description: 'InkSync opens instantly like Keep while offering clean tag organization, color-coding, and calendar integration.' },
       { title: 'Local-First Offline Reliability', description: 'Unlike Notion which struggles offline on mobile, InkSync saves notes to local storage first for 100% offline access.' },
-      { title: 'Affordable Premium', description: 'InkSync Premium includes Brain Dump, AI proofreading, and real-time collaboration for just .99¢/wk ($33.99/yr).' }
+      { title: 'Affordable Premium', description: 'InkSync Premium includes Brain Dump, AI proofreading, and real-time collaboration for just $0.99/wk ($33.99/yr).' }
     ],
     verdict: 'Choose Google Keep if you want instant, free sticky notes. Choose Notion if you need relational databases and project management. Choose InkSync if you want a fast, local-first note app with Brain Dump, AI writing tools, and cross-platform sync.'
   },
@@ -190,18 +190,18 @@ export const comparisonData: Record<string, ComparisonData> = {
       { feature: 'Notebook Hierarchy', competitorA: false, competitorB: true, inksync: false },
       { feature: 'App Speed', competitorA: 'Fast', competitorB: 'Sluggish', inksync: 'Lightning Fast' },
       { feature: 'Checklists & Tags', competitorA: true, competitorB: true, inksync: true },
-      { feature: 'Free Plan Allowance', competitorA: 'Unlimited basic notes', competitorB: '50 notes / 1 notebook', inksync: '150 notes & checklists' },
-      { feature: 'Pricing', competitorA: 'Free', competitorB: '$14.99/mo', inksync: 'Free (150 notes) / .99¢/wk ($33.99/yr)' },
+      { feature: 'Free Plan Allowance', competitorA: 'Unlimited basic notes', competitorB: '50 notes / 1 notebook', inksync: '50 notes & checklists' },
+      { feature: 'Pricing', competitorA: 'Free', competitorB: '$14.99/mo', inksync: 'Free (50 notes) / $0.99/wk ($33.99/yr)' },
       { feature: 'Local-first Offline Access', competitorA: 'Partial', competitorB: 'Paid only', inksync: 'Local-first (Free & Paid)' },
       { feature: 'Dedicated Brain Dump', competitorA: false, competitorB: false, inksync: 'Premium' },
       { feature: 'AI Proofread & Tone Rewrite', competitorA: false, competitorB: 'Paid Add-on', inksync: 'Premium' }
     ],
     whyInkSync: [
       { title: 'Modern Speed without Bloat', description: 'InkSync gives you color-coded notes, tags, and checklists without the heavy app lag or $14.99/mo price tag.' },
-      { title: 'Generous Free Tier', description: 'Get up to 150 notes & checklists free across all your devices, unlike Evernote’s 50-note limit.' },
+      { title: 'Generous Free Tier', description: 'Get up to 50 notes & checklists free across all your devices, unlike Evernote’s 50-note limit.' },
       { title: 'Brain Dump & AI Assistant', description: 'Quickly capture voice notes, images, and text in Brain Dump and polish drafts with AI.' }
     ],
-    verdict: 'Choose Google Keep for simple, free sticky notes. Choose Evernote if you need to archive and search hundreds of PDFs. Choose InkSync if you want a fast, modern note app with 150 free notes, Brain Dump, and affordable Premium.'
+    verdict: 'Choose Google Keep for simple, free sticky notes. Choose Evernote if you need to archive and search hundreds of PDFs. Choose InkSync if you want a fast, modern note app with 50 free notes, Brain Dump, and affordable Premium.'
   },
 
   'apple-notes-vs-notion': {
@@ -249,7 +249,7 @@ export const comparisonData: Record<string, ComparisonData> = {
       { feature: 'Apple Pencil & Document Scanning', competitorA: true, competitorB: false, inksync: false },
       { feature: 'Mobile Startup Speed', competitorA: 'Fast', competitorB: 'Slow', inksync: 'Fast' },
       { feature: 'Interactive Checklists & Tables', competitorA: true, competitorB: true, inksync: true },
-      { feature: 'Pricing', competitorA: 'Free', competitorB: 'Free / $8+ mo', inksync: 'Free (150 notes) / .99¢/wk ($33.99/yr)' },
+      { feature: 'Pricing', competitorA: 'Free', competitorB: 'Free / $8+ mo', inksync: 'Free (50 notes) / $0.99/wk ($33.99/yr)' },
       { feature: 'Local-first Offline Mode', competitorA: true, competitorB: 'Limited', inksync: 'Local-first (100% Offline)' },
       { feature: 'Dedicated Brain Dump', competitorA: false, competitorB: false, inksync: 'Premium' },
       { feature: 'AI Proofread & Tone Rewrite', competitorA: false, competitorB: 'Add-on ($)', inksync: 'Premium' }
@@ -306,18 +306,18 @@ export const comparisonData: Record<string, ComparisonData> = {
       { feature: 'Advanced Web Clipper', competitorA: false, competitorB: true, inksync: false },
       { feature: 'PDF & Image OCR Search', competitorA: false, competitorB: true, inksync: false },
       { feature: 'Document Scanning', competitorA: true, competitorB: true, inksync: false },
-      { feature: 'Free Note Limit', competitorA: 'Unlimited', competitorB: '50 notes total', inksync: '150 notes & checklists' },
-      { feature: 'Pricing', competitorA: 'Free', competitorB: '$14.99/mo', inksync: 'Free (150 notes) / .99¢/wk ($33.99/yr)' },
+      { feature: 'Free Note Limit', competitorA: 'Unlimited', competitorB: '50 notes total', inksync: '50 notes & checklists' },
+      { feature: 'Pricing', competitorA: 'Free', competitorB: '$14.99/mo', inksync: 'Free (50 notes) / $0.99/wk ($33.99/yr)' },
       { feature: 'Local-first Offline Mode', competitorA: true, competitorB: 'Paid only', inksync: 'Local-first (Free & Paid)' },
       { feature: 'Dedicated Brain Dump', competitorA: false, competitorB: false, inksync: 'Premium' },
       { feature: 'AI Proofread & Tone Rewrite', competitorA: false, competitorB: 'Paid Add-on', inksync: 'Premium' }
     ],
     whyInkSync: [
       { title: 'Cross-Platform Note Locking', description: 'Get Apple Notes-style password locking on Android and Web without being locked to Apple devices.' },
-      { title: 'Generous Free Tier', description: 'Create up to 150 notes free, compared to Evernote’s strict 50-note wall.' },
+      { title: 'Generous Free Tier', description: 'Create up to 50 notes free, compared to Evernote’s strict 50-note wall.' },
       { title: 'Dedicated Brain Dump', description: 'Quickly record voice notes, attach photos, and jot raw thoughts without organizing folders.' }
     ],
-    verdict: 'Choose Apple Notes if you use only Apple devices and want free password-protected notes. Choose Evernote if you need advanced web clipping and PDF OCR search across platforms. Choose InkSync if you want cross-platform access, password locking, 150 free notes, and local-first offline storage.'
+    verdict: 'Choose Apple Notes if you use only Apple devices and want free password-protected notes. Choose Evernote if you need advanced web clipping and PDF OCR search across platforms. Choose InkSync if you want cross-platform access, password locking, 50 free notes, and local-first offline storage.'
   },
 
   'notion-vs-evernote': {
@@ -363,8 +363,8 @@ export const comparisonData: Record<string, ComparisonData> = {
       { feature: 'PDF & Document OCR Search', competitorA: false, competitorB: true, inksync: false },
       { feature: 'Advanced Web Clipper', competitorA: 'Basic', competitorB: 'Advanced', inksync: false },
       { feature: 'Mobile Load Speed', competitorA: 'Slow', competitorB: 'Average', inksync: 'Lightning Fast' },
-      { feature: 'Free Allowance', competitorA: 'Unlimited pages (with limits)', competitorB: '50 notes / 1 notebook', inksync: '150 notes & checklists' },
-      { feature: 'Pricing', competitorA: 'Free / $8+ mo', competitorB: '$14.99/mo', inksync: 'Free (150 notes) / .99¢/wk ($33.99/yr)' },
+      { feature: 'Free Allowance', competitorA: 'Unlimited pages (with limits)', competitorB: '50 notes / 1 notebook', inksync: '50 notes & checklists' },
+      { feature: 'Pricing', competitorA: 'Free / $8+ mo', competitorB: '$14.99/mo', inksync: 'Free (50 notes) / $0.99/wk ($33.99/yr)' },
       { feature: 'Local-first Offline Mode', competitorA: 'Poor', competitorB: 'Paid only', inksync: 'Local-first (100% Offline)' },
       { feature: 'Dedicated Brain Dump', competitorA: false, competitorB: false, inksync: 'Premium' },
       { feature: 'AI Proofread & Tone Rewrite', competitorA: 'Add-on ($)', competitorB: 'Paid Add-on', inksync: 'Premium' }
@@ -420,8 +420,8 @@ export const comparisonData: Record<string, ComparisonData> = {
       { feature: 'Markdown Editor & Multi-format Export', competitorA: 'Partial', competitorB: true, inksync: false },
       { feature: 'Relational Databases & Kanban Boards', competitorA: true, competitorB: false, inksync: false },
       { feature: 'Mobile Startup Speed', competitorA: 'Slow', competitorB: 'Fast', inksync: 'Fast' },
-      { feature: 'Sync Cost', competitorA: 'Free', competitorB: '$2.99/mo (Bear Pro)', inksync: 'Free (150 notes)' },
-      { feature: 'Pricing', competitorA: 'Free / $8+ mo', competitorB: 'Free / $2.99 mo', inksync: 'Free (150 notes) / .99¢/wk ($33.99/yr)' },
+      { feature: 'Sync Cost', competitorA: 'Free', competitorB: '$2.99/mo (Bear Pro)', inksync: 'Free (50 notes)' },
+      { feature: 'Pricing', competitorA: 'Free / $8+ mo', competitorB: 'Free / $2.99 mo', inksync: 'Free (50 notes) / $0.99/wk ($33.99/yr)' },
       { feature: 'Local-first Offline Mode', competitorA: 'Poor', competitorB: true, inksync: 'Local-first (100% Offline)' },
       { feature: 'Dedicated Brain Dump', competitorA: false, competitorB: false, inksync: 'Premium' },
       { feature: 'Multi-User Note Sharing & Collaboration', competitorA: true, competitorB: false, inksync: 'Premium' },
@@ -480,7 +480,7 @@ export const comparisonData: Record<string, ComparisonData> = {
       { feature: 'Color-Coded Notebooks & Tags', competitorA: 'Databases', competitorB: 'Tags Only', inksync: 'Tags & Colors' },
       { feature: 'Mobile Startup Speed', competitorA: 'Slow', competitorB: 'Instant', inksync: 'Instant' },
       { feature: 'Note Version History', competitorA: 'Paid', competitorB: true, inksync: false },
-      { feature: 'Pricing', competitorA: 'Free / $8+ mo', competitorB: 'Free', inksync: 'Free (150 notes) / .99¢/wk ($33.99/yr)' },
+      { feature: 'Pricing', competitorA: 'Free / $8+ mo', competitorB: 'Free', inksync: 'Free (50 notes) / $0.99/wk ($33.99/yr)' },
       { feature: 'Local-first Offline Mode', competitorA: 'Poor', competitorB: 'Good', inksync: 'Local-first (100% Offline)' },
       { feature: 'Dedicated Brain Dump (Voice, Text & Images)', competitorA: false, competitorB: false, inksync: 'Premium' },
       { feature: 'AI Proofread & Tone Rewrite', competitorA: 'Add-on ($)', competitorB: false, inksync: 'Premium' }
@@ -538,7 +538,7 @@ export const comparisonData: Record<string, ComparisonData> = {
       { feature: 'Markdown Support & Version History', competitorA: false, competitorB: true, inksync: false },
       { feature: 'Google Calendar Integration', competitorA: true, competitorB: false, inksync: true },
       { feature: 'Mobile Startup Speed', competitorA: 'Fast', competitorB: 'Instant', inksync: 'Instant' },
-      { feature: 'Pricing', competitorA: 'Free', competitorB: 'Free', inksync: 'Free (150 notes) / .99¢/wk ($33.99/yr)' },
+      { feature: 'Pricing', competitorA: 'Free', competitorB: 'Free', inksync: 'Free (50 notes) / $0.99/wk ($33.99/yr)' },
       { feature: 'Local-first Offline Mode', competitorA: 'Partial', competitorB: 'Good', inksync: 'Local-first (100% Offline)' },
       { feature: 'Dedicated Brain Dump (Voice, Text & Images)', competitorA: false, competitorB: false, inksync: 'Premium' },
       { feature: 'AI Proofread & Tone Rewrite', competitorA: false, competitorB: false, inksync: 'Premium' }
@@ -594,8 +594,8 @@ export const comparisonData: Record<string, ComparisonData> = {
       { feature: 'Password & Face ID Note Locking', competitorA: true, competitorB: 'Pro only', inksync: true },
       { feature: 'Built-in Document Scanner', competitorA: true, competitorB: false, inksync: false },
       { feature: 'Multi-format Export (EPUB, MD, HTML)', competitorA: false, competitorB: true, inksync: false },
-      { feature: 'Sync Cost', competitorA: 'Free (iCloud)', competitorB: '$2.99/mo (Bear Pro)', inksync: 'Free (150 notes)' },
-      { feature: 'Pricing', competitorA: 'Free', competitorB: 'Free / $2.99 mo', inksync: 'Free (150 notes) / .99¢/wk ($33.99/yr)' },
+      { feature: 'Sync Cost', competitorA: 'Free (iCloud)', competitorB: '$2.99/mo (Bear Pro)', inksync: 'Free (50 notes)' },
+      { feature: 'Pricing', competitorA: 'Free', competitorB: 'Free / $2.99 mo', inksync: 'Free (50 notes) / $0.99/wk ($33.99/yr)' },
       { feature: 'Cross-platform Support (Android & Web)', competitorA: '✗ (Apple Only)', competitorB: '✗ (Apple Only)', inksync: '✓ (Android & Web)' },
       { feature: 'Local-first Offline Mode', competitorA: true, competitorB: true, inksync: 'Local-first (100% Offline)' },
       { feature: 'Dedicated Brain Dump (Voice, Text & Images)', competitorA: false, competitorB: false, inksync: 'Premium' },
@@ -603,10 +603,10 @@ export const comparisonData: Record<string, ComparisonData> = {
     ],
     whyInkSync: [
       { title: 'Cross-Platform Freedom', description: 'InkSync gives you password locking and clean note organization on Android, iOS, and Web—without Apple lock-in.' },
-      { title: 'Free Syncing for up to 150 Notes', description: 'Sync across all your devices for free on InkSync, unlike Bear which requires a paid Pro subscription.' },
+      { title: 'Free Syncing for up to 50 Notes', description: 'Sync across all your devices for free on InkSync, unlike Bear which requires a paid Pro subscription.' },
       { title: 'Brain Dump & AI', description: 'Record voice notes, attach photos, and proofread notes with AI.' }
     ],
-    verdict: 'Choose Apple Notes if you want free password-protected notes and document scanning on Apple devices. Choose Bear if you want a premium Markdown editor with custom themes and nested tags. Choose InkSync if you want cross-platform access, password locking, 150 free notes, and Brain Dump.'
+    verdict: 'Choose Apple Notes if you want free password-protected notes and document scanning on Apple devices. Choose Bear if you want a premium Markdown editor with custom themes and nested tags. Choose InkSync if you want cross-platform access, password locking, 50 free notes, and Brain Dump.'
   }
 };
 

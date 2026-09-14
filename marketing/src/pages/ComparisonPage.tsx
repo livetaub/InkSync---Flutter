@@ -184,7 +184,7 @@ export default function ComparisonPage() {
 
           <div className="cta-actions" style={{ marginTop: '32px' }}>
             <a href={APP_URL} className="btn btn-primary" target="_blank" rel="noopener noreferrer">
-              Try InkSync Free (Up to 150 Notes)
+              Try InkSync Free (Up to 50 Notes)
             </a>
           </div>
         </section>
@@ -204,7 +204,7 @@ export default function ComparisonPage() {
         {/* Footer CTA */}
         <section className="footer-cta">
           <h2>Ready for a fast, local-first note app?</h2>
-          <p>Try InkSync for free — works on Android, iOS, and Web.</p>
+          <p>Try InkSync for free — works on Android and Web — iOS coming soon.</p>
           <div className="footer-buttons">
             <a href={APP_URL} className="btn btn-primary" target="_blank" rel="noopener noreferrer">
               Open Web App
