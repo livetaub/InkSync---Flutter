@@ -3,6 +3,14 @@ import { Shield, Users, Zap, ArrowRight, Monitor, RefreshCw, CalendarDays, Check
 import { useDocumentMetadata } from '../hooks/useDocumentMetadata';
 import './LandingPage.css';
 
+const TESTIMONIALS = [
+  { text: "I was using Apple Notes and Google Keep across different devices and it was a mess. InkSync fixed that — one app, everything in sync. I use it for class notes, grocery lists, everything.", author: "Priya M.", avatar: "P" },
+  { text: "Our team switched from a shared Google Doc to InkSync for meeting notes. The real-time collab is smooth and way less cluttered. Plus my personal notes stay separate.", author: "James W.", avatar: "J" },
+  { text: "I write on my phone during my commute and pick up right where I left off on my laptop. The sync is genuinely instant. No fiddling with exports or cloud drives.", author: "Maria S.", avatar: "M" },
+  { text: "My wife and I share grocery lists, packing lists, and home project notes through InkSync. It replaced our fridge whiteboard. Simple, fast, and always up to date.", author: "Tom H.", avatar: "T" },
+  { text: "I have tried Notion, Bear, and Simplenote. InkSync hits the sweet spot — it has checklists, brain dump, and AI features without the bloat. It is the only notes app I have stuck with.", author: "Riki T.", avatar: "R" },
+];
+
 const FAQ_ITEMS = [
   { question: "What is InkSync?", answer: "InkSync is a cross-platform note-taking app designed for simplicity, offline reliability, and seamless sync. It works on Android, iOS, and the web, with local-first storage so your notes are always available even without an internet connection." },
   { question: "Is InkSync free to use?", answer: "Yes. InkSync offers a free plan that includes up to 50 notes & checklists, and real-time cross-platform sync across your Android and Web devices (iOS coming soon). If you need more capacity, multi-user collaboration, or other Premium features, InkSync Premium is available at $0.99 per week or $33.99 per year." },
@@ -387,6 +395,27 @@ const LandingPage = () => {
             <a href="/compare/notion-vs-evernote">Notion vs Evernote →</a>
           </div>
         </section>
+
+        {/* Testimonials Section */}
+        <section id="testimonials" className="testimonials-section">
+          <div className="testimonials-header">
+            <h2>What people are saying</h2>
+          </div>
+          <div className="marquee-container">
+            {[...TESTIMONIALS, ...TESTIMONIALS].map((testimonial, i) => (
+              <div key={i} className="testimonial-card">
+                <p className="testimonial-text">"{testimonial.text}"</p>
+                <div className="testimonial-author">
+                  <div className="author-avatar">{testimonial.avatar}</div>
+                  <div className="author-info">
+                    <h4>{testimonial.author}</h4>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* FAQ Section */}
         <section id="faq" className="faq-section container">
           <div className="section-header">
