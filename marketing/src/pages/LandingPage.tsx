@@ -119,14 +119,14 @@ const LandingPage = () => {
                 <span>Apple</span>
                 <span className="platform-tooltip">Coming soon</span>
               </div>
-              <a href={PLAY_STORE_URL} className="platform-icon" target="_blank" rel="noopener noreferrer">
+              <a href={PLAY_STORE_URL} className="platform-icon" target="_blank" rel="noopener noreferrer" data-track="android_cta_click" data-cta="hero-badge">
                 <AndroidLogo size={24} />
                 <span>Android</span>
               </a>
             </div>
             
             <div className="hero-actions">
-              <a href={`${APP_URL}/register`} className="btn-primary btn-large">
+              <a href={`${APP_URL}/register`} className="btn-primary btn-large" data-track="signup_cta_click" data-cta="hero">
                 Start Free — No Credit Card <ArrowRight size={18} />
               </a>
               <a href="#features" className="btn-outline btn-large">
@@ -463,7 +463,7 @@ const LandingPage = () => {
                 <li><span className="check">✓</span> Tags & instant search</li>
                 <li><span className="check">✓</span> Color-coded notebooks</li>
               </ul>
-              <a href="https://app.inksyncnote.com/register" className="btn-outline pricing-btn">Get Started Free</a>
+              <a href="https://app.inksyncnote.com/register" className="btn-outline pricing-btn" data-track="signup_cta_click" data-cta="pricing-free">Get Started Free</a>
             </div>
             <div className="pricing-card pricing-card-featured">
               <div className="pricing-badge">Most Popular</div>
@@ -483,7 +483,7 @@ const LandingPage = () => {
                 <li><span className="check">✓</span> Password-protected notes</li>
                 <li><span className="check">✓</span> Calendar integration</li>
               </ul>
-              <a href="https://app.inksyncnote.com/register" className="btn-primary pricing-btn">Start Free Trial</a>
+              <a href="https://app.inksyncnote.com/register" className="btn-primary pricing-btn" data-track="signup_cta_click" data-cta="pricing-premium">Start Free Trial</a>
             </div>
           </div>
         </section>
@@ -494,7 +494,7 @@ const LandingPage = () => {
             <div className="cta-box glass-panel">
               <h2>Ready to simplify your notes?</h2>
               <p>Start writing, organizing, and sharing — for free, across all your devices.</p>
-              <a href="https://app.inksyncnote.com/register" className="btn-primary btn-large cta-btn">
+              <a href="https://app.inksyncnote.com/register" className="btn-primary btn-large cta-btn" data-track="signup_cta_click" data-cta="final">
                 Create Your Free Account
               </a>
               <p className="cta-microcopy">Free forever • No credit card required</p>
@@ -506,7 +506,7 @@ const LandingPage = () => {
                     <strong>App Store</strong>
                   </div>
                 </div>
-                <a href={PLAY_STORE_URL} className="store-btn" target="_blank" rel="noopener noreferrer">
+                <a href={PLAY_STORE_URL} className="store-btn" target="_blank" rel="noopener noreferrer" data-track="android_cta_click" data-cta="store-section">
                   <GooglePlayLogo size={28} />
                   <div className="store-text">
                     <span>GET IT ON</span>
@@ -554,9 +554,9 @@ const LandingPage = () => {
           </div>
           <div className="footer-column">
             <h4>Get Started</h4>
-            <a href={`${APP_URL}/register`}>Create Account</a>
+            <a href={`${APP_URL}/register`} data-track="signup_cta_click" data-cta="footer">Create Account</a>
             <a href={`${APP_URL}/login`}>Sign In</a>
-            <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">Google Play</a>
+            <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer" data-track="android_cta_click" data-cta="footer">Google Play</a>
             <a href="mailto:support@inksyncnote.com">Contact</a>
             <a href="/terms">Privacy & Terms</a>
           </div>
