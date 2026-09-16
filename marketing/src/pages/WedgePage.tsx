@@ -128,6 +128,11 @@ const WedgePage: React.FC<WedgePageProps> = ({ slug }) => {
                 {r.breadcrumb}
               </Link>
             ))}
+            {data.relatedLinks.map((l, idx) => (
+              <Link key={'x'+idx} to={l.url} className="wedge-related-tag">
+                {l.label}
+              </Link>
+            ))}
           </div>
         </section>
       </div>

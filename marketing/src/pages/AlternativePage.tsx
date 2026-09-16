@@ -3,6 +3,7 @@ import { useParams, Navigate, Link } from 'react-router-dom';
 import { ChevronRight, ArrowRight, Check, X } from 'lucide-react';
 import { useDocumentMetadata } from '../hooks/useDocumentMetadata';
 import { alternativesData } from '../data/alternativeData';
+import { comparisonData } from '../data/comparisonData';
 import './AlternativePage.css';
 
 const APP_URL = 'https://app.inksyncnote.com';
@@ -15,23 +16,44 @@ const AlternativePage: React.FC = () => {
     return <Navigate to="/" replace />;
   }
 
+  // Cross-link: head-to-head comparisons involving this competitor.
+  const competitorKey = data.slug.replace(/-alternative$/, '');
+  const relatedComparisons = Object.keys(comparisonData)
+    .filter((k) => k.includes(competitorKey))
+    .map((k) => comparisonData[k]);
+
   // Set SEO metadata
   useDocumentMetadata(data.metaTitle, data.metaDescription);
 
   // Generate JSON-LD Schema
   const schemaOrg = {
     '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: data.metaTitle,
-    description: data.metaDescription,
-    author: {
-      '@type': 'Organization',
-      name: 'InkSync'
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: 'InkSync'
-    }
+    '@graph': [
+      {
+        '@type': 'Article',
+        headline: data.metaTitle,
+        description: data.metaDescription,
+        author: {
+          '@type': 'Organization',
+          name: 'InkSync'
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'InkSync'
+        }
+      },
+      {
+        '@type': 'FAQPage',
+        mainEntity: data.faqs.map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: faq.answer,
+          },
+        })),
+      },
+    ]
   };
 
   return (
@@ -136,6 +158,33 @@ const AlternativePage: React.FC = () => {
           </a>
         </section>
 
+        <section className="alt-section">
+          <h2>How to switch from {data.competitorName} to InkSync</h2>
+          <div className="alt-steps">
+            {data.switchSteps.map((step, idx) => (
+              <div key={idx} className="alt-step">
+                <div className="alt-step-number">{idx + 1}</div>
+                <div>
+                  <h3>{step.title}</h3>
+                  <p>{step.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="alt-section">
+          <h2>{data.competitorName} alternative: FAQs</h2>
+          <div className="alt-faq">
+            {data.faqs.map((faq, idx) => (
+              <div key={idx} className="alt-faq-item">
+                <h3>{faq.question}</h3>
+                <p>{faq.answer}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="related-alts">
           <h2>Compare InkSync with other apps</h2>
           <div className="related-tags">
@@ -148,6 +197,19 @@ const AlternativePage: React.FC = () => {
               ))}
           </div>
         </section>
+
+        {relatedComparisons.length > 0 && (
+          <section className="related-alts">
+            <h2>{data.competitorName} head-to-head comparisons</h2>
+            <div className="related-tags">
+              {relatedComparisons.map((comp) => (
+                <Link key={comp.slug} to={`/compare/${comp.slug}/`} className="related-tag">
+                  {comp.heroTitle}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

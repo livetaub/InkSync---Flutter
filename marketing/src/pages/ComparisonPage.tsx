@@ -22,10 +22,12 @@ export default function ComparisonPage() {
   const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.InkSync';
 
   // Data-driven FAQs: unique per page, built from the comparison data itself.
+  // NOTE: the first answer uses verdictFaq (a short decision guide), NOT the
+  // verdict verbatim — the Summary section already carries the full verdict.
   const faqs = [
     {
       question: `Which is better: ${data.competitorA.name} or ${data.competitorB.name}?`,
-      answer: data.verdict
+      answer: data.verdictFaq
     },
     {
       question: `What is the main difference between ${data.competitorA.name} and ${data.competitorB.name}?`,
@@ -68,6 +70,19 @@ export default function ComparisonPage() {
     .filter(k => k !== slug)
     .slice(0, 3)
     .map(k => comparisonData[k]);
+
+  // Cross-link: the dedicated alternative pages for each competitor.
+  const ALT_SLUG_BY_NAME: Record<string, string> = {
+    'Google Keep': 'google-keep-alternative',
+    'Apple Notes': 'apple-notes-alternative',
+    'Notion': 'notion-alternative',
+    'Evernote': 'evernote-alternative',
+    'Bear': 'bear-alternative',
+    'Simplenote': 'simplenote-alternative',
+  };
+  const altLinks = [data.competitorA.name, data.competitorB.name]
+    .map((n) => ALT_SLUG_BY_NAME[n] ? { name: n, slug: ALT_SLUG_BY_NAME[n] } : null)
+    .filter((x): x is { name: string; slug: string } => x !== null);
 
   const renderFeatureValue = (value: string | boolean) => {
     if (value === true) return <Check className="icon-true" />;
@@ -245,6 +260,20 @@ export default function ComparisonPage() {
             ))}
           </div>
         </section>
+
+        {/* Cross-link: dedicated alternative pages */}
+        {altLinks.length > 0 && (
+          <section className="related-section">
+            <h3>Looking for an alternative instead?</h3>
+            <div className="related-links">
+              {altLinks.map((a) => (
+                <Link key={a.slug} to={`/alternative/${a.slug}/`} className="related-card">
+                  Best {a.name} alternative in 2026
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Footer CTA */}
         <section className="footer-cta">
