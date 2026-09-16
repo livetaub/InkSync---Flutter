@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/paywall_variant.dart';
+import '../utils/platform_helper.dart' as platform;
 import 'local_database_service.dart';
 
 /// PaywallService — Manages paywall variants, A/B test assignments,
@@ -180,11 +181,21 @@ class PaywallService {
   /// - `checkout_started` — Checkout flow initiated
   /// - `checkout_completed` — Purchase successful
   /// - `subscription_active` — Subscription confirmed active
+  /// - `signup_completed` — First authenticated session (funnel)
+  /// - `first_note_created` — User's first note saved (funnel)
+  /// - `ai_proofread_used` / `ai_rewrite_used` — AI feature adoption
+  /// - `invite_sent` / `invite_accepted` — Collaboration loop
+  ///
+  /// Pre-signup events carry `anon_id` (web: the marketing-site `is_anon`
+  /// cookie, resolved automatically) so the funnel can be stitched after
+  /// signup. Never pass note contents, titles, or emails in metadata —
+  /// IDs and counts only.
   Future<void> trackEvent(
     String eventType, {
     String? plan,
     String? period,
     Map<String, dynamic>? metadata,
+    String? anonId,
   }) async {
     try {
       final supabase = Supabase.instance.client;
@@ -193,8 +204,13 @@ class PaywallService {
       final variantId = _cachedVariant?.id;
       if (variantId == 'fallback') return; // Don't track fallback variant
 
+      // Web: pick up the marketing-site attribution cookie when the caller
+      // didn't supply an explicit anon id. No-op on mobile.
+      final resolvedAnonId = anonId ?? platform.readWebAnonId();
+
       await supabase.from('paywall_events').insert({
         'user_id': userId, // Can be null for guest users
+        'anon_id': resolvedAnonId,
         'variant_id': variantId,
         'event_type': eventType,
         'platform': _platform,
@@ -204,7 +220,7 @@ class PaywallService {
       });
 
       debugPrint('PaywallService: Tracked event: $eventType '
-          '(plan=$plan, period=$period, variant=$variantId, userId=$userId)');
+          '(plan=$plan, period=$period, variant=$variantId, userId=$userId, anonId=$resolvedAnonId)');
     } catch (e) {
       // Non-critical — don't block UX for analytics failures
       debugPrint('PaywallService: Failed to track event $eventType: $e');

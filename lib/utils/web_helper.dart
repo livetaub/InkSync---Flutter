@@ -40,6 +40,19 @@ String getLocationOrigin() {
   }
 }
 
+/// Read the marketing-site `is_anon` attribution cookie (web only).
+/// Used to stitch pre-signup funnel events to the new user after signup.
+String? readWebAnonId() {
+  try {
+    final cookies = html.document.cookie ?? '';
+    final match =
+        RegExp(r'(?:^|; )is_anon=([^;]*)').firstMatch(cookies);
+    return match != null ? Uri.decodeComponent(match.group(1)!) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 void replaceHistoryState(String url) {
   try {
     html.window.history.replaceState(null, '', url);

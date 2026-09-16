@@ -14,3 +14,7 @@ void reloadPage() {}
 
 /// Register a platform view (web-only). No-op on mobile.
 void registerPlatformView(String viewId, dynamic element) {}
+
+/// Read the marketing-site `is_anon` attribution cookie. Always null on mobile
+/// (mobile funnels start at signup; there is no shared browser cookie).
+String? readWebAnonId() => null;

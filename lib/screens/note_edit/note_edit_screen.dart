@@ -4980,8 +4980,12 @@ class _AIWritingAssistSheetState extends State<AIWritingAssistSheet> {
     try {
       final geminiService = Provider.of<GeminiService>(context, listen: false);
       final result = await geminiService.processText(widget.text, tone);
-      
 
+      // Funnel: AI feature adoption (tone id only, never the text).
+      PaywallService.instance.trackEvent(
+        tone == 'proofread' ? 'ai_proofread_used' : 'ai_rewrite_used',
+        metadata: {'tone': tone},
+      );
 
       setState(() {
         _resultController.text = result;
