@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
 import 'local_database_service.dart';
 import 'local_notes_service.dart';
+import 'paywall_service.dart';
 import 'sync_engine.dart';
 
 /// Note Model
@@ -402,6 +403,7 @@ class NotesService {
     if (!kIsWeb) {
       final created = await _localNotesService.createNote(note);
       _triggerBackgroundSync();
+      if (created != null) _trackFirstNoteIfFirst(); // funnel (fire-and-forget)
       return created;
     }
 
@@ -417,10 +419,52 @@ class NotesService {
           .select()
           .single();
 
+      _trackFirstNoteIfFirst(); // funnel (fire-and-forget)
       return Note.fromSupabase(response);
     } catch (e) {
       debugPrint('Error creating note: $e');
       rethrow;
+    }
+  }
+
+  /// Funnel: fire `first_note_created` when this save leaves the user with
+  /// exactly one non-trashed note. Fire-and-forget — never breaks saving.
+  /// Only IDs/counts are logged, never note contents or titles.
+  Future<void> _trackFirstNoteIfFirst() async {
+    try {
+      int count;
+      if (kIsWeb) {
+        final rows = await _client
+            .from('notes')
+            .select('id, trashed_at')
+            .eq('user_id', _userId);
+        count = (rows as List)
+            .where((r) => (r as Map)['trashed_at'] == null)
+            .length;
+      } else {
+        final db = await LocalDatabaseService.instance.database;
+        final rows = await db.rawQuery(
+          'SELECT COUNT(*) AS c FROM notes '
+          'WHERE user_id = ? AND trashed_at IS NULL',
+          [_userId],
+        );
+        count = (rows.first['c'] as int?) ?? 0;
+      }
+      if (count != 1) return;
+
+      final createdAtRaw = _client.auth.currentUser?.createdAt;
+      final createdAt =
+          createdAtRaw == null ? null : DateTime.tryParse(createdAtRaw);
+      await PaywallService.instance.trackEvent(
+        'first_note_created',
+        metadata: {
+          if (createdAt != null)
+            'hours_since_signup':
+                DateTime.now().difference(createdAt).inHours,
+        },
+      );
+    } catch (_) {
+      // analytics must never break note creation
     }
   }
 
@@ -544,6 +588,12 @@ class NotesService {
             'accepted_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', inviteId);
+
+      // Funnel: collaboration loop completed (ID only).
+      PaywallService.instance.trackEvent(
+        'invite_accepted',
+        metadata: {'invite_id': inviteId},
+      );
     } catch (e) {
       debugPrint('Error accepting invite: $e');
       rethrow;
@@ -799,6 +849,12 @@ class NotesService {
         'status': 'pending',
       }, onConflict: 'note_id, to_email');
       // Email is sent automatically by the database trigger
+
+      // Funnel: collaboration loop. IDs only — never the invitee's email.
+      PaywallService.instance.trackEvent(
+        'invite_sent',
+        metadata: {'note_id': noteId},
+      );
     } catch (e) {
       debugPrint('Error sending invite: $e');
       rethrow;

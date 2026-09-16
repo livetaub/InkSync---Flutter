@@ -11,6 +11,7 @@ import '../../utils/ui_helper.dart';
 import '../../services/auth_service.dart';
 import '../../services/supabase_auth_service.dart';
 import '../../services/notes_service.dart';
+import '../../services/paywall_service.dart';
 import 'login_screen.dart';
 import 'welcome_screen.dart';
 import '../tutorial/tutorial_screen.dart';
@@ -66,6 +67,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void _onAuthEvent(AuthState data) {
     final event = data.event;
 
+    // Funnel: first authenticated session for a brand-new account.
+    // Returning users sign in too, but their account `createdAt` is old,
+    // so they are skipped. Fire-and-forget — never blocks auth UX.
+    if (event == AuthChangeEvent.signedIn) {
+      _trackSignupCompletedIfNew(data.session?.user);
+    }
+
     // Mobile: OAuth deep-link returned after sign-in
     if (!kIsWeb && event == AuthChangeEvent.signedIn) {
       closeInAppWebView();
@@ -101,6 +109,32 @@ class _AuthWrapperState extends State<AuthWrapper> {
     // Both platforms: password recovery flow
     if (event == AuthChangeEvent.passwordRecovery) {
       _handlePasswordRecovery();
+    }
+  }
+
+  /// Fire `signup_completed` once per brand-new account (funnel: Signup).
+  ///
+  /// A `signedIn` event also fires for returning users, so the account's
+  /// `createdAt` must be very recent to count as a signup. On web the
+  /// marketing-site `is_anon` cookie is attached automatically by
+  /// PaywallService so pre-signup pageviews can be stitched to this user.
+  /// Never throws — analytics must not break auth.
+  void _trackSignupCompletedIfNew(User? user) {
+    try {
+      final createdAtRaw = user?.createdAt;
+      if (createdAtRaw == null) return;
+      final createdAt = DateTime.tryParse(createdAtRaw);
+      if (createdAt == null) return;
+      // Returning users re-signing in have an old createdAt — skip them.
+      if (DateTime.now().difference(createdAt).inMinutes > 10) return;
+
+      final provider = user!.appMetadata['provider'] as String?;
+      PaywallService.instance.trackEvent(
+        'signup_completed',
+        metadata: {'auth_method': provider ?? 'email'},
+      );
+    } catch (_) {
+      // analytics must never break auth
     }
   }
 
