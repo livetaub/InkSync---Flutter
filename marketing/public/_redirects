@@ -1,1 +1,26 @@
+# Canonical URL policy: every route uses a trailing slash (matches sitemap.xml).
+# Explicit 301s from no-slash variants to the trailing-slash canonical so
+# Google consolidates ranking signals on one URL per page.
+
+/compare/apple-notes-vs-bear /compare/apple-notes-vs-bear/ 301
+/compare/apple-notes-vs-evernote /compare/apple-notes-vs-evernote/ 301
+/compare/apple-notes-vs-notion /compare/apple-notes-vs-notion/ 301
+/compare/google-keep-vs-apple-notes /compare/google-keep-vs-apple-notes/ 301
+/compare/google-keep-vs-evernote /compare/google-keep-vs-evernote/ 301
+/compare/google-keep-vs-notion /compare/google-keep-vs-notion/ 301
+/compare/google-keep-vs-simplenote /compare/google-keep-vs-simplenote/ 301
+/compare/notion-vs-bear /compare/notion-vs-bear/ 301
+/compare/notion-vs-evernote /compare/notion-vs-evernote/ 301
+/compare/notion-vs-simplenote /compare/notion-vs-simplenote/ 301
+/alternative/apple-notes-alternative /alternative/apple-notes-alternative/ 301
+/alternative/bear-alternative /alternative/bear-alternative/ 301
+/alternative/evernote-alternative /alternative/evernote-alternative/ 301
+/alternative/google-keep-alternative /alternative/google-keep-alternative/ 301
+/alternative/notion-alternative /alternative/notion-alternative/ 301
+/alternative/simplenote-alternative /alternative/simplenote-alternative/ 301
+/terms /terms/ 301
+/shared-grocery-list-app /shared-grocery-list-app/ 301
+/notes-app-for-couples /notes-app-for-couples/ 301
+/family-shared-notes-app /family-shared-notes-app/ 301
+
 /* /index.html 200

@@ -80,7 +80,7 @@ const AlternativePage: React.FC = () => {
         </section>
 
         <section className="alt-section">
-          <h2>Common reasons users explore a {data.competitorName} alternative</h2>
+          <h2>Common reasons users explore {data.article} {data.competitorName} alternative</h2>
           <div className="alt-grid">
             {data.painPoints.map((pain, idx) => {
               const IconComponent = pain.icon;

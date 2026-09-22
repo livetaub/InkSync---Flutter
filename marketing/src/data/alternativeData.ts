@@ -40,6 +40,7 @@ export interface AlternativeSwitchStep {
 export interface AlternativeData {
   slug: string;
   competitorName: string;
+  article: string; // 'a' or 'an' — for "explore a/an X alternative" headings
   metaTitle: string;
   metaDescription: string;
   heroTitle: string;
@@ -56,6 +57,7 @@ export const alternativesData: AlternativeData[] = [
   {
     slug: 'evernote-alternative',
     competitorName: 'Evernote',
+    article: 'an',
     metaTitle: 'The Best Evernote Alternative in 2026',
     metaDescription: 'Evernote alternative without the bloat: InkSync is fast, offline-first, and far cheaper. Free for up to 50 notes, Premium at $0.99/week. See how to switch.',
     heroTitle: 'The Best Evernote Alternative in 2026',
@@ -185,6 +187,7 @@ export const alternativesData: AlternativeData[] = [
   {
     slug: 'notion-alternative',
     competitorName: 'Notion',
+    article: 'a',
     metaTitle: 'The Best Notion Alternative in 2026',
     metaDescription: 'Notion alternative for fast notes: InkSync opens instantly, works fully offline, and costs far less than Notion Plus. Free for 50 notes — see the difference.',
     heroTitle: 'The Best Notion Alternative in 2026',
@@ -309,6 +312,7 @@ export const alternativesData: AlternativeData[] = [
   {
     slug: 'apple-notes-alternative',
     competitorName: 'Apple Notes',
+    article: 'an',
     metaTitle: 'The Best Apple Notes Alternative in 2026',
     metaDescription: 'Apple Notes alternative for Android, Web & Windows: InkSync syncs everywhere with AI tools and note locking. iOS coming soon. Free for 50 notes.',
     heroTitle: 'The Best Apple Notes Alternative in 2026',
@@ -433,6 +437,7 @@ export const alternativesData: AlternativeData[] = [
   {
     slug: 'google-keep-alternative',
     competitorName: 'Google Keep',
+    article: 'a',
     metaTitle: 'The Best Google Keep Alternative in 2026',
     metaDescription: 'Google Keep alternative with real collaboration, note locking, and AI writing tools — no Google account needed. Free for 50 notes on Android & web.',
     heroTitle: 'The Best Google Keep Alternative in 2026',
@@ -562,6 +567,7 @@ export const alternativesData: AlternativeData[] = [
   {
     slug: 'simplenote-alternative',
     competitorName: 'Simplenote',
+    article: 'a',
     metaTitle: 'The Best Simplenote Alternative in 2026',
     metaDescription: 'Simplenote alternative with the features it never added: checklists, note locking, AI tools, real collaboration. Still fast and simple — free for 50 notes.',
     heroTitle: 'The Best Simplenote Alternative in 2026',
@@ -686,6 +692,7 @@ export const alternativesData: AlternativeData[] = [
   {
     slug: 'bear-alternative',
     competitorName: 'Bear',
+    article: 'a',
     metaTitle: 'Bear Alternative for Android & Web — InkSync 2026',
     metaDescription: "Bear alternative for Android, Windows & Web: beautiful, fast note-taking everywhere Bear doesn't go. Free sync for 50 notes. iOS coming soon.",
     heroTitle: 'The Best Bear Alternative in 2026',

@@ -24,6 +24,10 @@ export interface ComparisonData {
   whyInkSync: { title: string; description: string }[];
   verdict: string;
   verdictFaq: string;
+  /** Optional override for the "main difference" FAQ answer. When absent, the
+      template falls back to the competitor descriptions. Use when the
+      descriptions would otherwise repeat body copy verbatim. */
+  differenceFaq?: string;
 }
 
 export const comparisonData: Record<string, ComparisonData> = {
@@ -522,7 +526,8 @@ export const comparisonData: Record<string, ComparisonData> = {
       { title: 'No Learning Curve, No Walled Garden', description: 'Skip Notion\u2019s database homework and Bear\u2019s Apple-only walls. InkSync is a notes app first: open, write, organize with tags and colors, capture messy ideas in Brain Dump. Everything you need for daily thinking, nothing you need a tutorial for.' }
     ],
     verdict: 'This is a choice between two philosophies of writing software. Choose Notion if your notes serve projects and teams: databases, kanban boards, wikis, and real-time collaboration across every platform, for around $10/mo on Plus. Accept the slow mobile app, the learning curve, and the weak offline support as the price of that power. Choose Bear if you write for pleasure on Apple devices and want the most beautiful Markdown editor available: instant, offline, elegant, with nested tags and superb export \u2014 for around $3/mo to sync it across your Apple gear. But notice what neither gives you: Notion cannot match Bear\u2019s speed or offline reliability, and Bear cannot leave Apple or collaborate at all. If you write on Android or the web, want to share notes with another human, or want AI help polishing drafts, both apps disqualify themselves. InkSync is the cross-platform middle: fast local-first startup like Bear, real-time sync and sharing across Android and the web like Notion\u2019s reach, password locking on the free tier, and Brain Dump plus built-in AI on a $33.99/year Premium plan. Writers who live outside Apple\u2019s walls \u2014 or share with people who do \u2014 will find it the more practical home.',
-    verdictFaq: 'Pick Notion if you need databases and team collaboration across platforms. Pick Bear if you want a beautiful Markdown editor and live entirely on Apple devices. Pick InkSync if you want fast, offline-capable notes on Android and web with sharing and AI \u2014 the things Bear cannot do and Notion does slowly.'
+    verdictFaq: 'Pick Notion if you need databases and team collaboration across platforms. Pick Bear if you want a beautiful Markdown editor and live entirely on Apple devices. Pick InkSync if you want fast, offline-capable notes on Android and web with sharing and AI \u2014 the things Bear cannot do and Notion does slowly.',
+    differenceFaq: 'Notion is a database-powered workspace for teams and projects; Bear is a beautiful Markdown editor for personal writing on Apple devices only. One organizes work, the other perfects the writing experience \u2014 they overlap less than you might expect.',
   },
 
   'notion-vs-simplenote': {

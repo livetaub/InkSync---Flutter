@@ -85,6 +85,22 @@ const LandingPage = () => {
 
   return (
     <div className="landing-page">
+      {/* FAQ structured data — homepage only. The shared FAQPage block was
+          removed from index.html so it no longer ships on every SEO page. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: FAQ_ITEMS.map((f) => ({
+              "@type": "Question",
+              name: f.question,
+              acceptedAnswer: { "@type": "Answer", text: f.answer },
+            })),
+          }),
+        }}
+      />
       {/* Background Elements */}
       <div className="bg-orbs">
         <div className="orb orb-1 animate-float"></div>

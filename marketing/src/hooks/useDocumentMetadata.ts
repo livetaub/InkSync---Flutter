@@ -42,7 +42,12 @@ export function useDocumentMetadata(title: string, description: string) {
       canonical = link;
     }
 
-    const pathname = window.location.pathname === '/' ? '' : window.location.pathname;
+    // Canonical policy (2026-09-22): every route canonicalizes to the trailing-slash
+    // form, matching sitemap.xml. The _redirects file 301s no-slash variants.
+    const rawPath = window.location.pathname;
+    const pathname = rawPath === '/'
+      ? ''
+      : rawPath.endsWith('/') ? rawPath : `${rawPath}/`;
     // The terms.inksyncnote.com subdomain always serves the terms page,
     // regardless of path — canonicalize it to the real /terms/ URL.
     const canonicalUrl = window.location.hostname === 'terms.inksyncnote.com'

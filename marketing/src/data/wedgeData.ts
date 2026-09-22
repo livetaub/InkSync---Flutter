@@ -59,7 +59,7 @@ export const wedgeData: WedgeData[] = [
   {
     slug: 'shared-grocery-list-app',
     breadcrumb: 'Shared Grocery List App',
-    metaTitle: 'Shared Grocery List App for Families — InkSync',
+    metaTitle: 'Shared Grocery List App: One Real-Time List for the Whole Family — InkSync',
     metaDescription:
       'Shared grocery list app the whole family edits in real time. Add from the couch, check off in dead-zone aisles. Free to try — Android & web.',
     heroTitle: 'Shared Grocery List App for the Whole Family',
@@ -196,7 +196,7 @@ export const wedgeData: WedgeData[] = [
   {
     slug: 'notes-app-for-couples',
     breadcrumb: 'Notes App for Couples',
-    metaTitle: 'Notes App for Couples: Share Lists & Notes — InkSync',
+    metaTitle: 'Notes App for Couples: Shared Lists, Date Ideas & Trip Plans — InkSync',
     metaDescription:
       'Notes app for couples: shared grocery lists, date ideas, trip plans — one private space you both update in real time. Free to try.',
     heroTitle: 'Notes App for Couples',

@@ -31,7 +31,7 @@ export default function ComparisonPage() {
     },
     {
       question: `What is the main difference between ${data.competitorA.name} and ${data.competitorB.name}?`,
-      answer: `${data.competitorA.name}: ${data.competitorA.description} ${data.competitorB.name}: ${data.competitorB.description}`
+      answer: data.differenceFaq ?? `${data.competitorA.name}: ${data.competitorA.description} ${data.competitorB.name}: ${data.competitorB.description}`
     },
     {
       question: `Is there a good alternative to ${data.competitorA.name} and ${data.competitorB.name}?`,
